@@ -10,8 +10,7 @@ describe("DebateFactory", function () {
     let voting: Contract;
     let tallying: Contract;
     let utilsLib: Contract;
-
-
+    
     let mockERC20Contract: Contract;
     let mockArbitratorContract: Contract
     let sender: string;

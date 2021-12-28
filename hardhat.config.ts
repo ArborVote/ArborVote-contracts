@@ -28,6 +28,7 @@ export default {
     },
     gasReporter: {
         currency: 'EUR',
+        //gasPrice: 30,
         coinmarketcap: process.env.COINMARKETCAP_API_KEY
     }
 };

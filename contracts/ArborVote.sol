@@ -1,9 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "./interfaces/IProofOfHumanity.sol";
-import "./interfaces/IArbitrable.sol";
 import "./storage/HasStorage.sol";
 import "./phases/Editing.sol";
 import "./phases/Voting.sol";
