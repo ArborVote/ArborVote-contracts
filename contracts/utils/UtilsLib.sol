@@ -34,7 +34,7 @@ library UtilsLib {
     function find_internal(uint16[] memory data, uint16 begin, uint16 end, uint16 value) public pure returns (uint16 ret) {
         uint16 len = end - begin;
         if (len == 0 || (len == 1 && data[begin] != value)) {
-            return 0xffff; // 2^16-1
+            return type(uint16).max;
         }
         uint16 mid = begin + len / 2;
         uint16 v = data[mid];
@@ -51,20 +51,19 @@ library UtilsLib {
         v1 = v - v2;
     }
 
-    function find(uint16[] memory data, uint16 value) public pure returns (uint16 ret) {
-        return find_internal(data, 0, uint16(data.length), value);
+    function findIndex(uint16[] memory arr, uint16 value) public pure returns (uint16 ret) {
+        return find_internal(arr, 0, uint16(arr.length), value);
     }
 
-    function removeById(uint16[] storage data, uint16 _argumentId) public {
-        uint16 i = find(data, _argumentId);
-        removeByIndex(data, i);
+    function removeById(uint16[] storage arr, uint16 _argumentId) public {
+        removeByIndex(arr, findIndex(arr, _argumentId));
     }
 
-    function removeByIndex(uint16[] storage data, uint16 i) public {
-        while (i < data.length - 1) {
-            data[i] = data[i + 1];
+    function removeByIndex(uint16[] storage arr, uint16 i) public {
+        while (i < arr.length - 1) {
+            arr[i] = arr[i + 1];
             i++;
         }
-        data.pop();
+        arr.pop();
     }
 }
