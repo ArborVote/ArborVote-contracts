@@ -41,14 +41,12 @@ library DebateLib {
         uint16 untalliedChilds;  // 2 bytes
         bool isSupporting;       // 1 byte
         State state;             // 1 byte
-        uint256 disputeId;       // 32 bytes // Todo cleaner way?
     }
 
     struct Argument {
-        Metadata metadata;       // 64 bytes
+        Metadata metadata;       // 32 bytes
         bytes32 digest;          // 32 bytes
         Vault market;            // 32 Bytes
-
     } // 3x 32 bytes
 
     struct Multihash {
@@ -88,6 +86,7 @@ contract Debates is ACLHelper{
 
     uint240 public debatesCount;
     mapping(uint240 => DebateLib.Debate ) public debates;
+    mapping(uint240 => mapping(uint16 => uint256)) public disputes;
 
     function initialize(
         address _editing,
@@ -155,7 +154,7 @@ contract Debates is ACLHelper{
     }
 
     function getDisputeId(DebateLib.Identifier memory _id) public view returns (uint256){
-        return debates[_id.debate].arguments[_id.argument].metadata.disputeId;
+        return disputes[_id.debate][_id.argument];
     }
 
     function getDisputedArgumentsCount(uint240 _debateId) public view returns (uint256){
@@ -216,8 +215,8 @@ contract Debates is ACLHelper{
     onlyFromContract(editing)
     {
         debates[_id.debate].arguments[_id.argument].metadata.state = DebateLib.State.Disputed;
-        debates[_id.debate].arguments[_id.argument].metadata.disputeId = _disputeId;
         debates[_id.debate].disputedArgumentIds.push(_id.argument);
+        disputes[_id.debate][_id.argument] = _disputeId;
     }
 
     function clearDispute(DebateLib.Identifier memory _id, DebateLib.State _state)

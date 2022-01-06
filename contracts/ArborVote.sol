@@ -46,8 +46,7 @@ contract ArborVote is HasStorage {
                 parentId : 0,
                 untalliedChilds : 0,
                 isSupporting : true,
-                state : DebateLib.State.Final,
-                disputeId: 0
+                state : DebateLib.State.Final
             }),
             digest : _ipfsHash,
             market : DebateLib.Vault({

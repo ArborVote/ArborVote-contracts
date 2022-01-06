@@ -60,7 +60,8 @@ contract Editing is HasStorage, IArbitrable {
                 const : pro*con,
                 vote : DebateLib.DEBATE_DEPOSIT,
                 fees : 0,
-                childsImpact: 0 });
+                childsImpact: 0
+            });
         }
 
         uint32 finalizationTime;
@@ -75,8 +76,7 @@ contract Editing is HasStorage, IArbitrable {
             parentId : _parent.argument,
             untalliedChilds : 0,
             isSupporting : _isSupporting,
-            state : DebateLib.State.Created,
-            disputeId: 0
+            state : DebateLib.State.Created
         });
 
         debates.addArgument(_parent.debate, DebateLib.Argument({
@@ -145,6 +145,7 @@ contract Editing is HasStorage, IArbitrable {
        {
            arbitrator.submitEvidence(disputeId, msg.sender,
                abi.encode(
+                   _arg,
                    debates.getDigest(_arg),
                    DebateLib.IPFS_HASH_FUNCTION,
                    DebateLib.IPFS_HASH_SIZE
