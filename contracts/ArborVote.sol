@@ -37,6 +37,7 @@ contract ArborVote is HasStorage {
     function createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
     public
     onlyArgumentState(DebateLib.Identifier({debate: debates.debatesCount(), argument: 0}), DebateLib.State.Unitialized)
+    returns (uint240 debateId)
     {
         DebateLib.Argument memory rootArgument = DebateLib.Argument({
             metadata: DebateLib.Metadata({
@@ -60,8 +61,9 @@ contract ArborVote is HasStorage {
             })
         });
 
+        debateId = debates.debatesCount();
+        phases.initializePhases(debateId, _timeUnit);
         debates.initializeDebate(rootArgument);
-        phases.initializePhases(debates.debatesCount(), _timeUnit);
     }
 
     function join(uint240 _debateId)
