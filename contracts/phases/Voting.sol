@@ -6,7 +6,7 @@ import "./../utils/UtilsLib.sol";
 
 contract Voting is HasStorage {
     using UtilsLib for uint16[];
-    using UtilsLib for uint24;
+    using UtilsLib for uint32;
 
     event Invested(
         address indexed buyer,
@@ -15,20 +15,20 @@ contract Voting is HasStorage {
     );
 
     // TODO add explanation
-    function calculateSwap(uint24 _pro, uint24 _con, uint24 _swap) internal pure returns (uint24) {
+    function calculateSwap(uint32 _pro, uint32 _con, uint32 _swap) internal pure returns (uint32) {
         return _pro - _pro / (1 + _swap / _con);
         // TODO is this really always the order? Does this stem from the pair?
     }
 
-    function calculateMint(DebateLib.Identifier memory _id, uint24 _voteTokenAmount)
+    function calculateMint(DebateLib.Identifier memory _id, uint32 _voteTokenAmount)
     public view returns (DebateLib.InvestmentData memory data)
     {
-        (uint24 pro, uint24 con) = debates.getArgumentTokens(_id);
+        (uint32 pro, uint32 con) = debates.getArgumentTokens(_id);
 
         data.voteTokensInvested = _voteTokenAmount;
 
         data.fee = _voteTokenAmount.multipyByFraction(DebateLib.FEE_PERCENTAGE, 100);
-        (uint24 proMint, uint24 conMint) = (_voteTokenAmount - data.fee).split(pro, con);
+        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(pro, con);
 
         data.proMint = proMint;
         data.conMint = conMint;
@@ -37,7 +37,7 @@ contract Voting is HasStorage {
         data.conSwap = calculateSwap(proMint, conMint, proMint);
     }
 
-    function investInPro(DebateLib.Identifier memory _arg, uint24 _amount) external
+    function investInPro(DebateLib.Identifier memory _arg, uint32 _amount) external
     onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
     {
         require(users.getUserTokens(_arg.debate, msg.sender) >= _amount);
@@ -52,7 +52,7 @@ contract Voting is HasStorage {
         emit Invested(msg.sender, _arg, data);
     }
 
-    function investInCon(DebateLib.Identifier memory _arg, uint24 _amount) external
+    function investInCon(DebateLib.Identifier memory _arg, uint32 _amount) external
     onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
     {
         require(users.getUserTokens(_arg.debate, msg.sender) >= _amount);

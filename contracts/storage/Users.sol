@@ -10,19 +10,19 @@ import "./Debates.sol";
 library UserLib {
     IProofOfHumanity constant pohProxy= IProofOfHumanity(0x1dAD862095d40d43c2109370121cf087632874dB);
     uint16 constant MAX_ARGUMENTS = 2 ** 16 - 1;
-    uint24 constant INITIAL_TOKENS = 100;
+    uint32 constant INITIAL_TOKENS = 100;
 
     enum Role {Unassigned, Participant, Juror}
 
     struct User {
         Role role;
-        uint24 tokens;
+        uint32 tokens;
         mapping(uint16 => Shares) shares;
     }
 
     struct Shares {
-        uint24 pro;
-        uint24 con;
+        uint32 pro;
+        uint32 con;
     }
 }
 
@@ -47,7 +47,7 @@ contract Users is ACLHelper {
         _grant(address(this), voting, STORAGE_CHANGE_ROLE);
     }
 
-    function getUserTokens(uint256 _debateId, address _user) public view returns (uint24){
+    function getUserTokens(uint256 _debateId, address _user) public view returns (uint32){
         return users[_debateId][_user].tokens;
     }
 
@@ -63,21 +63,21 @@ contract Users is ACLHelper {
         users[_debateId][_user].tokens = UserLib.INITIAL_TOKENS;
     }
 
-    function spendVotesTokens(uint240 _debateId, address _user, uint24 _amount)
+    function spendVotesTokens(uint240 _debateId, address _user, uint32 _amount)
     external
     onlyFromTwoContracts(editing, voting)
     {
         users[_debateId][_user].tokens -= _amount;
     }
 
-    function addProTokens(DebateLib.Identifier memory _id, address _user, uint24 _amount)
+    function addProTokens(DebateLib.Identifier memory _id, address _user, uint32 _amount)
     external
     onlyFromContract(voting)
     {
         users[_id.debate][_user].shares[_id.argument].pro += _amount;
     }
 
-    function addConTokens(DebateLib.Identifier memory _id, address _user, uint24 _amount)
+    function addConTokens(DebateLib.Identifier memory _id, address _user, uint32 _amount)
     external
     onlyFromContract(voting)
     {

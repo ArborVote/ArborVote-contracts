@@ -9,7 +9,7 @@ import "./../utils/UtilsLib.sol";
 
 contract Editing is HasStorage, IArbitrable {
     using SafeERC20 for ERC20;
-    using UtilsLib for uint24;
+    using UtilsLib for uint32;
 
     IArbitrator arbitrator;
 
@@ -39,7 +39,7 @@ contract Editing is HasStorage, IArbitrable {
     function addArgument(
         DebateLib.Identifier memory _parent,
         bytes32 _ipfsHash, bool _isSupporting,
-        uint24 _initialApproval
+        uint32 _initialApproval
     )
     onlyRole(_parent.debate, UserLib.Role.Participant)
     onlyArgumentState(_parent, DebateLib.State.Final)
@@ -53,14 +53,13 @@ contract Editing is HasStorage, IArbitrable {
         {
             // Create a child node and add it to the mapping
             users.spendVotesTokens(_parent.debate, msg.sender, DebateLib.DEBATE_DEPOSIT);
-            (uint24 pro, uint24 con) = DebateLib.DEBATE_DEPOSIT.split(100 - _initialApproval, _initialApproval);
+            (uint32 pro, uint32 con) = DebateLib.DEBATE_DEPOSIT.split(100 - _initialApproval, _initialApproval);
             market = DebateLib.Vault({
                 pro : pro,
                 con : con,
                 const : pro*con,
                 vote : DebateLib.DEBATE_DEPOSIT,
                 fees : 0,
-                ownImpact: 0 ,
                 childsImpact: 0 });
         }
 

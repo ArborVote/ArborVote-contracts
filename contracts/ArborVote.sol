@@ -56,7 +56,6 @@ contract ArborVote is HasStorage {
                 const : 0,
                 vote : 0,
                 fees : 0,
-                ownImpact: 0,
                 childsImpact: 0
             })
         });

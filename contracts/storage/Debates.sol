@@ -13,21 +13,20 @@ library DebateLib {
     uint16 constant MAX_ARGUMENTS = type(uint16).max;
 
     // TODO make parameters
-    int48 constant MIXING = 0x800000; // type(int48).max / 2
+    int64 constant MIXING = 0x800000; // type(int64).max / 2
 
-    uint24 constant DEBATE_DEPOSIT = 10;
-    uint24 constant FEE_PERCENTAGE  = 5;
+    uint32 constant DEBATE_DEPOSIT = 10;
+    uint32 constant FEE_PERCENTAGE  = 5;
 
     enum State {Unitialized, Created, Final, Disputed, Invalid}
 
     struct Vault {
-        uint24 pro; // 6 bytes
-        uint24 con;
-        uint24 const;
-        uint24 vote;
-        uint24 fees;
-        int48 ownImpact;
-        int48 childsImpact;
+        uint32 pro; // 3 bytes
+        uint32 con;
+        uint32 const;
+        uint32 vote;
+        uint32 fees;
+        int64 childsImpact;
     }
 
     struct Identifier {
@@ -70,12 +69,12 @@ library DebateLib {
     }
 
     struct InvestmentData {
-        uint24 voteTokensInvested;
-        uint24 proMint;
-        uint24 conMint;
-        uint24 fee;
-        uint24 proSwap;
-        uint24 conSwap;
+        uint32 voteTokensInvested;
+        uint32 proMint;
+        uint32 conMint;
+        uint32 fee;
+        uint32 proSwap;
+        uint32 conSwap;
     }
 }
 
@@ -127,12 +126,12 @@ contract Debates is ACLHelper{
         debates[_id.debate].arguments[_id.argument].market.con -= data.conSwap;
     }
 
-    function getArgumentTokens(DebateLib.Identifier memory _id) public view returns (uint24 pro, uint24 con){
+    function getArgumentTokens(DebateLib.Identifier memory _id) public view returns (uint32 pro, uint32 con){
         pro = debates[_id.debate].arguments[_id.argument].market.pro;
         con = debates[_id.debate].arguments[_id.argument].market.con;
     }
 
-    function getChildsImpact(DebateLib.Identifier memory _id) public view returns (int48){
+    function getChildsImpact(DebateLib.Identifier memory _id) public view returns (int64){
         return debates[_id.debate].arguments[_id.argument].market.childsImpact;
     }
 
@@ -257,7 +256,7 @@ contract Debates is ACLHelper{
         debates[_id.debate].leafArgumentIds.push(_id.argument);
     }
 
-    function addChildImpact(DebateLib.Identifier memory _id, int48 _childImpact)
+    function addChildImpact(DebateLib.Identifier memory _id, int64 _childImpact)
     external
     onlyFromContract(tallying)
     {

@@ -5,8 +5,8 @@ import "./../storage/HasStorage.sol";
 import "./../utils/UtilsLib.sol";
 
 contract Tallying is HasStorage {
-    using UtilsLib for int48;
-    using UtilsLib for uint24;
+    using UtilsLib for int64;
+    using UtilsLib for uint32;
 
     function tallyTree(uint240 _debateId)
     public
@@ -24,15 +24,15 @@ contract Tallying is HasStorage {
 
     function calculateOwnImpact(DebateLib.Identifier memory _arg)
     internal view
-    returns(int48 own)
+    returns(int64 own)
     {
-        (uint24 pro, uint24 con) = debates.getArgumentTokens(_arg);
+        (uint32 pro, uint32 con) = debates.getArgumentTokens(_arg);
 
         // calculate own impact
-        own = int48(uint48(type(uint24).max.multipyByFraction(pro, pro + con)));
+        own = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
 
-        own = own.multipyByFraction(type(int48).max - int48(DebateLib.MIXING), type(int48).max)
-        + (debates.getChildsImpact(_arg)).multipyByFraction(int48(DebateLib.MIXING), type(int48).max);
+        own = own.multipyByFraction(type(int64).max - int64(DebateLib.MIXING), type(int64).max)
+        + (debates.getChildsImpact(_arg)).multipyByFraction(int64(DebateLib.MIXING), type(int64).max);
 
         if(debates.isSupporting(_arg))
             own = -own;
@@ -43,7 +43,7 @@ contract Tallying is HasStorage {
     {
         require(debates.getUntalliedChilds(_arg) == 0); // All childs must be tallied first
 
-        int48 own = calculateOwnImpact(_arg);
+        int64 own = calculateOwnImpact(_arg);
 
         // Change parent state
         DebateLib.Identifier memory parent = debates.getParentId(_arg);
