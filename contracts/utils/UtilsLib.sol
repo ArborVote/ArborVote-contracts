@@ -31,7 +31,8 @@ library UtilsLib {
     }
 
     // from https://gist.github.com/chriseth/0c671e0dac08c3630f47
-    function find_internal(uint16[] memory data, uint16 begin, uint16 end, uint16 value) public pure returns (uint16 ret) {
+    function find_internal(uint16[] memory data, uint16 begin, uint16 end, uint16 value)
+    public pure returns (uint16 ret) {
         uint16 len = end - begin;
         if (len == 0 || (len == 1 && data[begin] != value)) {
             return type(uint16).max;
