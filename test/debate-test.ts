@@ -10,7 +10,8 @@ describe("DebateFactory", function () {
     let voting: Contract;
     let tallying: Contract;
     let utilsLib: Contract;
-    
+
+    let mockProofOfHumanityContract: Contract;
     let mockERC20Contract: Contract;
     let mockArbitratorContract: Contract
     let sender: string;
@@ -43,12 +44,16 @@ describe("DebateFactory", function () {
         await voting.deployed();
         await tallying.deployed();
 
+        const MockProofOfHumanity = await ethers.getContractFactory("MockProofOfHumanity");
+        mockProofOfHumanityContract = await MockProofOfHumanity.deploy();
+        await mockProofOfHumanityContract.deployed();
+
         const MockERC20 = await ethers.getContractFactory("MockERC20");
         mockERC20Contract = await MockERC20.deploy(1000, sender);
         await mockERC20Contract.deployed();
 
         const MockArbitrator = await ethers.getContractFactory("MockArbitrator");
-        mockArbitratorContract = await MockArbitrator.deploy(1000, sender);
+        mockArbitratorContract = await MockArbitrator.deploy();
         await mockArbitratorContract.deployed();
     });
 
@@ -63,14 +68,16 @@ describe("DebateFactory", function () {
             users.address,
             editing.address,
             voting.address,
-            tallying.address
+            tallying.address,
+            mockProofOfHumanityContract.address
         );
 
         // Approve ERC token
         await mockERC20Contract.approve(await arborVote.address, 1000);
         const ipfsHash = ethers.utils.formatBytes32String("test");
 
-        await arborVote.createDebate(ipfsHash, 12345);
+        const id = await arborVote.createDebate(ipfsHash, 12345);
+        await arborVote.join(id.value);
     });
 });
 

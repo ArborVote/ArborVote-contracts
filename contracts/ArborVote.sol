@@ -15,15 +15,15 @@ contract ArborVote is HasStorage {
         address _phases,
         address _debates,
         address _users,
-
         address _editing,
         address _voting,
-        address _tallying
+        address _tallying,
+        address _proofOfHumanity
     ) external {
         this.initializeStorage(_phases, _debates, _users);
         phases.initialize();
         debates.initialize(_editing, _voting, _tallying);
-        users.initialize(_editing, _voting);
+        users.initialize(_editing, _voting, _proofOfHumanity);
 
         editing = Editing(_editing);
         voting = Voting(_voting);
@@ -69,7 +69,7 @@ contract ArborVote is HasStorage {
     excludePhase(_debateId, PhaseLib.Phase.Finished)
     onlyRole(_debateId, UserLib.Role.Unassigned)
     {
-        require(UserLib.pohProxy.isRegistered(msg.sender)); // not failsafe - takes 3.5 days to switch address
+        require(users.isHuman(msg.sender)); // not failsafe - takes 3.5 days to switch address
         users.initializeUser(_debateId, msg.sender);
     }
 

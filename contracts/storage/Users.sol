@@ -8,7 +8,6 @@ import "./Debates.sol";
 
 
 library UserLib {
-    IProofOfHumanity constant pohProxy= IProofOfHumanity(0x1dAD862095d40d43c2109370121cf087632874dB);
     uint16 constant MAX_ARGUMENTS = 2 ** 16 - 1;
     uint32 constant INITIAL_TOKENS = 100;
 
@@ -27,6 +26,8 @@ library UserLib {
 }
 
 contract Users is ACLHelper {
+    IProofOfHumanity private pohProxy; // PoH mainnet: 0x1dAD862095d40d43c2109370121cf087632874dB
+
     address private arborVote;
     address private editing;
     address private voting;
@@ -35,12 +36,15 @@ contract Users is ACLHelper {
 
     function initialize(
         address _editing,
-        address _voting
+        address _voting,
+        address _proofOfHumanity
     ) external initializer {
         initACL(msg.sender);
         arborVote = msg.sender;
         editing = _editing;
         voting = _voting;
+        pohProxy = IProofOfHumanity(_proofOfHumanity);
+
 
         _grant(address(this), arborVote, STORAGE_CHANGE_ROLE);
         _grant(address(this), editing, STORAGE_CHANGE_ROLE);
@@ -49,6 +53,10 @@ contract Users is ACLHelper {
 
     function getUserTokens(uint256 _debateId, address _user) public view returns (uint32){
         return users[_debateId][_user].tokens;
+    }
+
+    function isHuman(address _user) public view returns (bool){
+        return pohProxy.isRegistered(_user);
     }
 
     function getRole(uint256 _debateId, address _user) public view returns (UserLib.Role) {
