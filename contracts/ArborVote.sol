@@ -21,7 +21,7 @@ contract ArborVote is HasStorage {
         address _proofOfHumanity
     ) external {
         this.initializeStorage(_phases, _debates, _users);
-        phases.initialize();
+        phases.initialize(_tallying);
         debates.initialize(_editing, _voting, _tallying);
         users.initialize(_editing, _voting, _proofOfHumanity);
 
@@ -75,5 +75,15 @@ contract ArborVote is HasStorage {
 
     function updatePhase(uint240 _debateId) public {
         phases.updatePhase(_debateId);
+    }
+
+    function debateResult(uint240 _debateId)
+    public view
+    returns (bool)
+    {
+        if (phases.getPhase(_debateId) != PhaseLib.Phase.Finished)
+            revert WrongPhase({expected: PhaseLib.Phase.Finished, actual: phases.getPhase(_debateId)});
+
+        return debates.getChildsImpact(DebateLib.Identifier({debate : _debateId, argument: 0})) > 0;
     }
 }

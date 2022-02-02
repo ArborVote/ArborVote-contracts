@@ -17,14 +17,17 @@ library PhaseLib {
 
 contract Phases is Initializable, ACLHelper {
     address private arborVote;
+    address private tallying;
 
     mapping (uint256 => PhaseLib.PhaseData) public phases;
 
-    function initialize() external initializer {
+    function initialize(address _tallying) external initializer {
         initACL(msg.sender);
         arborVote = msg.sender;
+        tallying = _tallying;
 
         _grant(address(this), arborVote, STORAGE_CHANGE_ROLE);
+        _grant(address(this), tallying, STORAGE_CHANGE_ROLE);
     }
 
     function getTimeUnit(uint256 _debateId) public view returns (uint32){
@@ -65,5 +68,12 @@ contract Phases is Initializable, ACLHelper {
         {
             phases[_debateId].currentPhase = PhaseLib.Phase.Voting;
         }
+    }
+
+    function setFinished(uint240 _debateId)
+    external
+    onlyFromContract(tallying)
+    {
+        phases[_debateId].currentPhase = PhaseLib.Phase.Finished;
     }
 }

@@ -20,6 +20,8 @@ contract Tallying is HasStorage {
         for (uint256 i = 0; i < arrayLength; i++) {
             tallyNode(DebateLib.Identifier({debate: _debateId, argument: leafArgumentIds[i]}));
         }
+
+        phases.setFinished(_debateId);
     }
 
     function calculateOwnImpact(DebateLib.Identifier memory _arg)
