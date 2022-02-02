@@ -84,6 +84,7 @@ contract Debates is ACLHelper{
     address private voting;
     address private tallying;
 
+    uint32 public totalVotes;
     uint240 public debatesCount;
     mapping(uint240 => DebateLib.Debate ) public debates;
     mapping(uint240 => mapping(uint16 => uint256)) public disputes;
@@ -109,7 +110,9 @@ contract Debates is ACLHelper{
     external
     onlyFromContract(voting)
     {
-        debates[_id.debate].arguments[_id.argument].market.vote += data.voteTokensInvested - data.fee;
+        uint32 votes = data.voteTokensInvested - data.fee;
+        totalVotes += votes;
+        debates[_id.debate].arguments[_id.argument].market.vote += votes;
         debates[_id.debate].arguments[_id.argument].market.fees += data.fee;
         debates[_id.debate].arguments[_id.argument].market.con += data.conMint;
         debates[_id.debate].arguments[_id.argument].market.pro -= data.proSwap;
@@ -119,7 +122,9 @@ contract Debates is ACLHelper{
     external
     onlyFromContract(voting)
     {
-        debates[_id.debate].arguments[_id.argument].market.vote += data.voteTokensInvested - data.fee;
+        uint32 votes = data.voteTokensInvested - data.fee;
+        totalVotes += votes;
+        debates[_id.debate].arguments[_id.argument].market.vote += votes;
         debates[_id.debate].arguments[_id.argument].market.fees += data.fee;
         debates[_id.debate].arguments[_id.argument].market.pro += data.proMint;
         debates[_id.debate].arguments[_id.argument].market.con -= data.conSwap;
