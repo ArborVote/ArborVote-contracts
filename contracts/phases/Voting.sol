@@ -46,9 +46,11 @@ contract Voting is HasStorage {
         DebateLib.InvestmentData memory data = calculateMint(_arg, _amount);
         debates.executeProInvestment(_arg, data);
 
+        data.conSwap = 0;
+
         users.addProTokens(_arg, msg.sender, data.proMint + data.proSwap);
 
-        data.conSwap = 0;
+
         emit Invested(msg.sender, _arg, data);
     }
 
@@ -61,9 +63,10 @@ contract Voting is HasStorage {
         DebateLib.InvestmentData memory data = calculateMint(_arg, _amount);
         debates.executeConInvestment(_arg, data);
 
+        data.proSwap = 0;
+
         users.addConTokens(_arg, msg.sender, data.conMint + data.conSwap);
 
-        data.proSwap = 0;
         emit Invested(msg.sender, _arg, data);
     }
 
