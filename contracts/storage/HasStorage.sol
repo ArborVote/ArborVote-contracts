@@ -15,10 +15,7 @@ contract HasStorage is Initializable {
         address _phases,
         address _debates,
         address _users
-    )
-    external
-    initializer
-    {
+    ) external initializer {
         phases = Phases(_phases);
         debates = Debates(_debates);
         users = Users(_users);
@@ -29,32 +26,50 @@ contract HasStorage is Initializable {
     error WrongRole(UserLib.Role expected, UserLib.Role actual);
     error WrongAddress(address expected, address actual);
 
-    modifier onlyPhase(uint256 _debateId, PhaseLib.Phase _phase){
+    modifier onlyPhase(uint256 _debateId, PhaseLib.Phase _phase) {
         if (phases.getPhase(_debateId) != _phase)
-            revert WrongPhase({expected: _phase, actual: phases.getPhase(_debateId)});
+            revert WrongPhase({
+                expected: _phase,
+                actual: phases.getPhase(_debateId)
+            });
         _;
     }
-    modifier excludePhase(uint256 _debateId, PhaseLib.Phase _phase){
+    modifier excludePhase(uint256 _debateId, PhaseLib.Phase _phase) {
         if (phases.getPhase(_debateId) == _phase)
-            revert WrongPhase({expected: _phase, actual: phases.getPhase(_debateId)});
+            revert WrongPhase({
+                expected: _phase,
+                actual: phases.getPhase(_debateId)
+            });
         _;
     }
 
-    modifier onlyArgumentState(DebateLib.Identifier memory _id, DebateLib.State _state){
+    modifier onlyArgumentState(
+        DebateLib.Identifier memory _id,
+        DebateLib.State _state
+    ) {
         if (debates.getArgumentState(_id) != _state)
-            revert WrongState({expected: _state, actual: debates.getArgumentState(_id)});
+            revert WrongState({
+                expected: _state,
+                actual: debates.getArgumentState(_id)
+            });
         _;
     }
 
-    modifier onlyCreator(DebateLib.Identifier memory _id){
+    modifier onlyCreator(DebateLib.Identifier memory _id) {
         if (msg.sender != debates.getCreator(_id))
-            revert WrongAddress({expected: debates.getCreator(_id), actual: msg.sender});
+            revert WrongAddress({
+                expected: debates.getCreator(_id),
+                actual: msg.sender
+            });
         _;
     }
 
-    modifier onlyRole(uint256 _debateId, UserLib.Role _role){
+    modifier onlyRole(uint256 _debateId, UserLib.Role _role) {
         if (users.getRole(_debateId, msg.sender) != _role)
-            revert WrongRole({expected: _role, actual: users.getRole(_debateId, msg.sender)});
+            revert WrongRole({
+                expected: _role,
+                actual: users.getRole(_debateId, msg.sender)
+            });
         _;
     }
 }

@@ -15,20 +15,31 @@ contract Voting is HasStorage {
     );
 
     // TODO add explanation
-    function calculateSwap(uint32 _pro, uint32 _con, uint32 _swap) internal pure returns (uint32) {
+    function calculateSwap(
+        uint32 _pro,
+        uint32 _con,
+        uint32 _swap
+    ) internal pure returns (uint32) {
         return _pro - _pro / (1 + _swap / _con);
         // TODO is this really always the order? Does this stem from the pair?
     }
 
-    function calculateMint(DebateLib.Identifier memory _id, uint32 _voteTokenAmount)
-    public view returns (DebateLib.InvestmentData memory data)
-    {
+    function calculateMint(
+        DebateLib.Identifier memory _id,
+        uint32 _voteTokenAmount
+    ) public view returns (DebateLib.InvestmentData memory data) {
         (uint32 pro, uint32 con) = debates.getArgumentTokens(_id);
 
         data.voteTokensInvested = _voteTokenAmount;
 
-        data.fee = _voteTokenAmount.multipyByFraction(DebateLib.FEE_PERCENTAGE, 100);
-        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(pro, con);
+        data.fee = _voteTokenAmount.multipyByFraction(
+            DebateLib.FEE_PERCENTAGE,
+            100
+        );
+        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(
+            pro,
+            con
+        );
 
         data.proMint = proMint;
         data.conMint = conMint;
@@ -37,8 +48,9 @@ contract Voting is HasStorage {
         data.conSwap = calculateSwap(proMint, conMint, proMint);
     }
 
-    function investInPro(DebateLib.Identifier memory _arg, uint32 _amount) external
-    onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
+    function investInPro(DebateLib.Identifier memory _arg, uint32 _amount)
+        external
+        onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
     {
         require(users.getUserTokens(_arg.debate, msg.sender) >= _amount);
         users.spendVotesTokens(_arg.debate, msg.sender, _amount);
@@ -50,12 +62,12 @@ contract Voting is HasStorage {
 
         users.addProTokens(_arg, msg.sender, data.proMint + data.proSwap);
 
-
         emit Invested(msg.sender, _arg, data);
     }
 
-    function investInCon(DebateLib.Identifier memory _arg, uint32 _amount) external
-    onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
+    function investInCon(DebateLib.Identifier memory _arg, uint32 _amount)
+        external
+        onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
     {
         require(users.getUserTokens(_arg.debate, msg.sender) >= _amount);
         users.spendVotesTokens(_arg.debate, msg.sender, _amount);
@@ -69,5 +81,4 @@ contract Voting is HasStorage {
 
         emit Invested(msg.sender, _arg, data);
     }
-
 }

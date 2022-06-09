@@ -16,9 +16,15 @@ library DebateLib {
     int64 constant MIXING = 0x800000; // type(int64).max / 2
 
     uint32 constant DEBATE_DEPOSIT = 10;
-    uint32 constant FEE_PERCENTAGE  = 5;
+    uint32 constant FEE_PERCENTAGE = 5;
 
-    enum State {Unitialized, Created, Final, Disputed, Invalid}
+    enum State {
+        Unitialized,
+        Created,
+        Final,
+        Disputed,
+        Invalid
+    }
 
     struct Vault {
         uint32 pro; // 3 bytes
@@ -35,18 +41,18 @@ library DebateLib {
     }
 
     struct Metadata {
-        address creator;         // 20 bytes
+        address creator; // 20 bytes
         uint32 finalizationTime; // 4 bytes
-        uint16 parentId;         // 2 bytes
-        uint16 untalliedChilds;  // 2 bytes
-        bool isSupporting;       // 1 byte
-        State state;             // 1 byte
+        uint16 parentId; // 2 bytes
+        uint16 untalliedChilds; // 2 bytes
+        bool isSupporting; // 1 byte
+        State state; // 1 byte
     }
 
     struct Argument {
-        Metadata metadata;       // 32 bytes
-        bytes32 digest;          // 32 bytes
-        Vault market;            // 32 Bytes
+        Metadata metadata; // 32 bytes
+        bytes32 digest; // 32 bytes
+        Vault market; // 32 Bytes
     } // 3x 32 bytes
 
     struct Multihash {
@@ -55,7 +61,11 @@ library DebateLib {
         uint8 size;
     }
 
-    function getMultihash(Argument storage _argument) public view returns (Multihash memory){
+    function getMultihash(Argument storage _argument)
+        public
+        view
+        returns (Multihash memory)
+    {
         return Multihash(_argument.digest, IPFS_HASH_FUNCTION, IPFS_HASH_SIZE);
     }
 
@@ -76,7 +86,7 @@ library DebateLib {
     }
 }
 
-contract Debates is ACLHelper{
+contract Debates is ACLHelper {
     using UtilsLib for uint16[];
 
     address private arborVote;
@@ -86,7 +96,7 @@ contract Debates is ACLHelper{
 
     uint32 public totalVotes;
     uint240 public debatesCount;
-    mapping(uint240 => DebateLib.Debate ) public debates;
+    mapping(uint240 => DebateLib.Debate) public debates;
     mapping(uint240 => mapping(uint16 => uint256)) public disputes;
 
     function initialize(
@@ -106,10 +116,10 @@ contract Debates is ACLHelper{
         _grant(address(this), tallying, STORAGE_CHANGE_ROLE);
     }
 
-    function executeProInvestment(DebateLib.Identifier memory _id, DebateLib.InvestmentData memory data)
-    external
-    onlyFromContract(voting)
-    {
+    function executeProInvestment(
+        DebateLib.Identifier memory _id,
+        DebateLib.InvestmentData memory data
+    ) external onlyFromContract(voting) {
         uint32 votes = data.voteTokensInvested - data.fee;
         totalVotes += votes;
         debates[_id.debate].arguments[_id.argument].market.vote += votes;
@@ -118,10 +128,10 @@ contract Debates is ACLHelper{
         debates[_id.debate].arguments[_id.argument].market.pro -= data.proSwap;
     }
 
-    function executeConInvestment(DebateLib.Identifier memory _id, DebateLib.InvestmentData memory data)
-    external
-    onlyFromContract(voting)
-    {
+    function executeConInvestment(
+        DebateLib.Identifier memory _id,
+        DebateLib.InvestmentData memory data
+    ) external onlyFromContract(voting) {
         uint32 votes = data.voteTokensInvested - data.fee;
         totalVotes += votes;
         debates[_id.debate].arguments[_id.argument].market.vote += votes;
@@ -130,63 +140,122 @@ contract Debates is ACLHelper{
         debates[_id.debate].arguments[_id.argument].market.con -= data.conSwap;
     }
 
-    function getArgumentTokens(DebateLib.Identifier memory _id) public view returns (uint32 pro, uint32 con){
+    function getArgumentTokens(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (uint32 pro, uint32 con)
+    {
         pro = debates[_id.debate].arguments[_id.argument].market.pro;
         con = debates[_id.debate].arguments[_id.argument].market.con;
     }
 
-    function getChildsImpact(DebateLib.Identifier memory _id) public view returns (int64){
+    function getChildsImpact(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (int64)
+    {
         return debates[_id.debate].arguments[_id.argument].market.childsImpact;
     }
 
-    function getDigest(DebateLib.Identifier memory _id) public view returns (bytes32){
+    function getDigest(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (bytes32)
+    {
         return debates[_id.debate].arguments[_id.argument].digest;
     }
 
-    function getArgumentState(DebateLib.Identifier memory _id) public view returns (DebateLib.State){
+    function getArgumentState(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (DebateLib.State)
+    {
         return debates[_id.debate].arguments[_id.argument].metadata.state;
     }
 
-    function isSupporting(DebateLib.Identifier memory _id) public view returns (bool){
-        return debates[_id.debate].arguments[_id.argument].metadata.isSupporting;
+    function isSupporting(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (bool)
+    {
+        return
+            debates[_id.debate].arguments[_id.argument].metadata.isSupporting;
     }
 
-    function getParentId(DebateLib.Identifier memory _id) public view returns (DebateLib.Identifier memory){
-        return DebateLib.Identifier({
-            debate: _id.debate,
-            argument: debates[_id.debate].arguments[_id.argument].metadata.parentId
-        });
+    function getParentId(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (DebateLib.Identifier memory)
+    {
+        return
+            DebateLib.Identifier({
+                debate: _id.debate,
+                argument: debates[_id.debate]
+                    .arguments[_id.argument]
+                    .metadata
+                    .parentId
+            });
     }
 
-    function getDisputeId(DebateLib.Identifier memory _id) public view returns (uint256){
+    function getDisputeId(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (uint256)
+    {
         return disputes[_id.debate][_id.argument];
     }
 
-    function getDisputedArgumentsCount(uint240 _debateId) public view returns (uint256){
+    function getDisputedArgumentsCount(uint240 _debateId)
+        public
+        view
+        returns (uint256)
+    {
         return debates[_debateId].disputedArgumentIds.length;
     }
 
-    function getLeafArgumentIds(uint240 _debateId) public view returns (uint16[] memory){
+    function getLeafArgumentIds(uint240 _debateId)
+        public
+        view
+        returns (uint16[] memory)
+    {
         return debates[_debateId].leafArgumentIds;
     }
 
-    function getUntalliedChilds(DebateLib.Identifier memory _id) public view returns (uint16){
-        return debates[_id.debate].arguments[_id.argument].metadata.untalliedChilds;
+    function getUntalliedChilds(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (uint16)
+    {
+        return
+            debates[_id.debate]
+                .arguments[_id.argument]
+                .metadata
+                .untalliedChilds;
     }
 
-    function getArgumentFinalizationTime(DebateLib.Identifier memory _id) public view returns (uint32){
-        return debates[_id.debate].arguments[_id.argument].metadata.finalizationTime;
+    function getArgumentFinalizationTime(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (uint32)
+    {
+        return
+            debates[_id.debate]
+                .arguments[_id.argument]
+                .metadata
+                .finalizationTime;
     }
 
-    function getCreator(DebateLib.Identifier memory _id) public view returns (address) {
+    function getCreator(DebateLib.Identifier memory _id)
+        public
+        view
+        returns (address)
+    {
         return debates[_id.debate].arguments[_id.argument].metadata.creator;
     }
 
-
-
     function initializeDebate(DebateLib.Argument memory rootArgument)
-    external
-    onlyFromContract(arborVote)
+        external
+        onlyFromContract(arborVote)
     {
         debates[debatesCount].arguments[0] = rootArgument;
         // increment counters
@@ -194,87 +263,107 @@ contract Debates is ACLHelper{
         debatesCount++;
     }
 
-
-    function addArgument(uint240 _debateId, DebateLib.Argument memory _argument
-    )
-    external
-    onlyFromContract(editing)
+    function addArgument(uint240 _debateId, DebateLib.Argument memory _argument)
+        external
+        onlyFromContract(editing)
     {
-        debates[_debateId].arguments[debates[_debateId].argumentsCount] = _argument;
+        debates[_debateId].arguments[
+            debates[_debateId].argumentsCount
+        ] = _argument;
 
-        debates[_debateId].leafArgumentIds.removeById(_argument.metadata.parentId);
-        debates[_debateId].arguments[_argument.metadata.parentId].metadata.untalliedChilds++;
-        debates[_debateId].leafArgumentIds.push(debates[_debateId].argumentsCount);
+        debates[_debateId].leafArgumentIds.removeById(
+            _argument.metadata.parentId
+        );
+        debates[_debateId]
+            .arguments[_argument.metadata.parentId]
+            .metadata
+            .untalliedChilds++;
+        debates[_debateId].leafArgumentIds.push(
+            debates[_debateId].argumentsCount
+        );
         debates[_debateId].argumentsCount++;
     }
 
-    function setArgumentState(DebateLib.Identifier memory _id, DebateLib.State _state)
-    external
-    onlyFromContract(editing)
-    {
+    function setArgumentState(
+        DebateLib.Identifier memory _id,
+        DebateLib.State _state
+    ) external onlyFromContract(editing) {
         debates[_id.debate].arguments[_id.argument].metadata.state = _state;
     }
 
     function addDispute(DebateLib.Identifier memory _id, uint256 _disputeId)
-    external
-    onlyFromContract(editing)
+        external
+        onlyFromContract(editing)
     {
-        debates[_id.debate].arguments[_id.argument].metadata.state = DebateLib.State.Disputed;
+        debates[_id.debate].arguments[_id.argument].metadata.state = DebateLib
+            .State
+            .Disputed;
         debates[_id.debate].disputedArgumentIds.push(_id.argument);
         disputes[_id.debate][_id.argument] = _disputeId;
     }
 
-    function clearDispute(DebateLib.Identifier memory _id, DebateLib.State _state)
-    external
-    onlyFromContract(editing)
-    {
+    function clearDispute(
+        DebateLib.Identifier memory _id,
+        DebateLib.State _state
+    ) external onlyFromContract(editing) {
         debates[_id.debate].arguments[_id.argument].metadata.state = _state;
         debates[_id.debate].disputedArgumentIds.removeById(_id.argument);
     }
 
-    function setParentId(DebateLib.Identifier memory _id, uint16 _parentArgumentId)
-    external
-    onlyFromContract(editing)
-    {
-        debates[_id.debate].arguments[_id.argument].metadata.parentId = _parentArgumentId;
+    function setParentId(
+        DebateLib.Identifier memory _id,
+        uint16 _parentArgumentId
+    ) external onlyFromContract(editing) {
+        debates[_id.debate]
+            .arguments[_id.argument]
+            .metadata
+            .parentId = _parentArgumentId;
     }
 
-    function setFinalizationTime(DebateLib.Identifier memory _id, uint32 _finalizationTime)
-    external
-    onlyFromContract(editing)
-    {
-        debates[_id.debate].arguments[_id.argument].metadata.finalizationTime = _finalizationTime;
+    function setFinalizationTime(
+        DebateLib.Identifier memory _id,
+        uint32 _finalizationTime
+    ) external onlyFromContract(editing) {
+        debates[_id.debate]
+            .arguments[_id.argument]
+            .metadata
+            .finalizationTime = _finalizationTime;
     }
 
     function setDigest(DebateLib.Identifier memory _id, bytes32 _digest)
-    external
-    onlyFromContract(editing)
+        external
+        onlyFromContract(editing)
     {
         debates[_id.debate].arguments[_id.argument].digest = _digest;
     }
 
     function appendLeafArgumentId(DebateLib.Identifier memory _id)
-    external
-    onlyFromContract(editing)
+        external
+        onlyFromContract(editing)
     {
         debates[_id.debate].leafArgumentIds.push(_id.argument);
     }
 
     function addChildImpact(DebateLib.Identifier memory _id, int64 _childImpact)
-    external
-    onlyFromContract(tallying)
+        external
+        onlyFromContract(tallying)
     {
-        debates[_id.debate].arguments[_id.argument].market.childsImpact += _childImpact;
+        debates[_id.debate]
+            .arguments[_id.argument]
+            .market
+            .childsImpact += _childImpact;
     }
 
-    function incrementUntalliedChilds(DebateLib.Identifier memory _id) external
-    onlyFromContract(editing)
+    function incrementUntalliedChilds(DebateLib.Identifier memory _id)
+        external
+        onlyFromContract(editing)
     {
         debates[_id.debate].arguments[_id.argument].metadata.untalliedChilds++;
     }
 
-    function decrementUntalliedChilds(DebateLib.Identifier memory _id) external
-    onlyFromTwoContracts(editing, tallying)
+    function decrementUntalliedChilds(DebateLib.Identifier memory _id)
+        external
+        onlyFromTwoContracts(editing, tallying)
     {
         debates[_id.debate].arguments[_id.argument].metadata.untalliedChilds--;
     }

@@ -35,32 +35,36 @@ contract ArborVote is HasStorage {
     }
 
     function createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
-    external
-    returns (uint240) {
+        external
+        returns (uint240)
+    {
         return _createDebate(_ipfsHash, _timeUnit);
     }
 
     function _createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
-    internal
-    onlyArgumentState(DebateLib.Identifier({debate: debates.debatesCount(), argument: 0}), DebateLib.State.Unitialized)
-    returns (uint240 debateId)
+        internal
+        onlyArgumentState(
+            DebateLib.Identifier({debate: debates.debatesCount(), argument: 0}),
+            DebateLib.State.Unitialized
+        )
+        returns (uint240 debateId)
     {
         DebateLib.Argument memory rootArgument = DebateLib.Argument({
             metadata: DebateLib.Metadata({
-                creator : msg.sender,
+                creator: msg.sender,
                 finalizationTime: uint32(block.timestamp),
-                parentId : 0,
-                untalliedChilds : 0,
-                isSupporting : true,
-                state : DebateLib.State.Final
+                parentId: 0,
+                untalliedChilds: 0,
+                isSupporting: true,
+                state: DebateLib.State.Final
             }),
-            digest : _ipfsHash,
-            market : DebateLib.Vault({
-                pro : 0,
-                con : 0,
-                const : 0,
-                vote : 0,
-                fees : 0,
+            digest: _ipfsHash,
+            market: DebateLib.Vault({
+                pro: 0,
+                con: 0,
+                const: 0,
+                vote: 0,
+                fees: 0,
                 childsImpact: 0
             })
         });
@@ -71,9 +75,9 @@ contract ArborVote is HasStorage {
     }
 
     function join(uint240 _debateId)
-    external
-    excludePhase(_debateId, PhaseLib.Phase.Finished)
-    onlyRole(_debateId, UserLib.Role.Unassigned)
+        external
+        excludePhase(_debateId, PhaseLib.Phase.Finished)
+        onlyRole(_debateId, UserLib.Role.Unassigned)
     {
         require(users.isHuman(msg.sender)); // not failsafe - takes 3.5 days to switch address
         users.initializeUser(_debateId, msg.sender);
@@ -87,13 +91,16 @@ contract ArborVote is HasStorage {
         phases.updatePhase(_debateId);
     }
 
-    function debateResult(uint240 _debateId)
-    external view
-    returns (bool)
-    {
+    function debateResult(uint240 _debateId) external view returns (bool) {
         if (phases.getPhase(_debateId) != PhaseLib.Phase.Finished)
-            revert WrongPhase({expected: PhaseLib.Phase.Finished, actual: phases.getPhase(_debateId)});
+            revert WrongPhase({
+                expected: PhaseLib.Phase.Finished,
+                actual: phases.getPhase(_debateId)
+            });
 
-        return debates.getChildsImpact(DebateLib.Identifier({debate : _debateId, argument: 0})) > 0;
+        return
+            debates.getChildsImpact(
+                DebateLib.Identifier({debate: _debateId, argument: 0})
+            ) > 0;
     }
 }
