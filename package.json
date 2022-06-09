@@ -19,9 +19,9 @@
   "homepage": "https://github.com/ArborVote/ArborVote-contracts#readme",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-solhint": "^2.0.0",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/hardhat-upgrades": "^1.9.0",
-    "@nomiclabs/hardhat-solhint": "^2.0.0",
     "@typechain/ethers-v5": "^7.0.1",
     "@types/chai": "^4.2.21",
     "@types/mocha": "^9.0.0",
@@ -31,17 +31,17 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.6",
     "hardhat": "^2.5.0",
-    "hardhat-typechain": "^0.3.5",
     "hardhat-gas-reporter": "^1.0.6",
+    "hardhat-typechain": "^0.3.5",
     "ts-generator": "^0.1.1",
     "ts-node": "^10.2.1",
     "typechain": "^5.1.2",
     "typescript": "^4.4.2"
   },
   "dependencies": {
-    "@graphprotocol/graph-cli": "^0.19.0",
-    "@graphprotocol/graph-ts": "^0.19.0",
-    "@openzeppelin/contracts": "^4.2.0",
-    "@openzeppelin/contracts-upgradeable": "^4.2.0"
+    "@graphprotocol/graph-cli": "^0.30.4",
+    "@graphprotocol/graph-ts": "^0.27.0",
+    "@openzeppelin/contracts": "^4.6.0",
+    "@openzeppelin/contracts-upgradeable": "^4.6.0"
   }
 }

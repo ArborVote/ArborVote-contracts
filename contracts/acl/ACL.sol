@@ -62,7 +62,7 @@ contract ACL is Initializable {
         _;
     }
 
-    function initACL(address _who) internal initializer {
+    function initACL(address _who) internal onlyInitializing {
         _initializeACL(address(this), _who);
     }
 
