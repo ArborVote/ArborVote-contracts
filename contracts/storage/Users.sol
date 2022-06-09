@@ -53,11 +53,7 @@ contract Users is ACLHelper {
         _grant(address(this), voting, STORAGE_CHANGE_ROLE);
     }
 
-    function getUserTokens(uint256 _debateId, address _user)
-        public
-        view
-        returns (uint32)
-    {
+    function getUserTokens(uint256 _debateId, address _user) public view returns (uint32) {
         return users[_debateId][_user].tokens;
     }
 
@@ -65,18 +61,11 @@ contract Users is ACLHelper {
         return pohProxy.isRegistered(_user);
     }
 
-    function getRole(uint256 _debateId, address _user)
-        public
-        view
-        returns (UserLib.Role)
-    {
+    function getRole(uint256 _debateId, address _user) public view returns (UserLib.Role) {
         return users[_debateId][_user].role;
     }
 
-    function initializeUser(uint240 _debateId, address _user)
-        external
-        onlyFromContract(arborVote)
-    {
+    function initializeUser(uint240 _debateId, address _user) external onlyFromContract(arborVote) {
         users[_debateId][_user].tokens = UserLib.INITIAL_TOKENS;
     }
 

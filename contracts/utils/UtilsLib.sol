@@ -57,11 +57,7 @@ library UtilsLib {
         v1 = v - v2;
     }
 
-    function findIndex(uint16[] memory arr, uint16 value)
-        public
-        pure
-        returns (uint16 ret)
-    {
+    function findIndex(uint16[] memory arr, uint16 value) public pure returns (uint16 ret) {
         return find_internal(arr, 0, uint16(arr.length), value);
     }
 

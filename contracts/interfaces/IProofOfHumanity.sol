@@ -13,5 +13,5 @@ interface IProofOfHumanity {
     /** @dev Return the number of submissions irrespective of their status.
      *  @return The number of submissions.
      */
-    function submissionCounter() external view returns (uint);
+    function submissionCounter() external view returns (uint256);
 }

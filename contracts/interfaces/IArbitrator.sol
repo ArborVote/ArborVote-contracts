@@ -43,9 +43,7 @@ interface IArbitrator {
      * @return subject Subject associated to the dispute
      * @return ruling Ruling number computed for the given dispute
      */
-    function rule(uint256 _disputeId)
-        external
-        returns (address subject, uint256 ruling);
+    function rule(uint256 _disputeId) external returns (address subject, uint256 ruling);
 
     /**
      * @dev Tell the dispute fees information to create a dispute

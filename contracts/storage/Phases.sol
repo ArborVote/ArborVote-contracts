@@ -53,18 +53,11 @@ contract Phases is Initializable, ACLHelper {
     {
         phases[_debateId].currentPhase = PhaseLib.Phase.Editing;
         phases[_debateId].timeUnit = _timeUnit;
-        phases[_debateId].editingEndTime = uint32(
-            block.timestamp + 7 * _timeUnit
-        );
-        phases[_debateId].votingEndTime = uint32(
-            block.timestamp + 10 * _timeUnit
-        );
+        phases[_debateId].editingEndTime = uint32(block.timestamp + 7 * _timeUnit);
+        phases[_debateId].votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
     }
 
-    function updatePhase(uint240 _debateId)
-        external
-        onlyFromContract(arborVote)
-    {
+    function updatePhase(uint240 _debateId) external onlyFromContract(arborVote) {
         uint32 currentTime = uint32(block.timestamp);
 
         if (
@@ -80,10 +73,7 @@ contract Phases is Initializable, ACLHelper {
         }
     }
 
-    function setFinished(uint240 _debateId)
-        external
-        onlyFromContract(tallying)
-    {
+    function setFinished(uint240 _debateId) external onlyFromContract(tallying) {
         phases[_debateId].currentPhase = PhaseLib.Phase.Finished;
     }
 }

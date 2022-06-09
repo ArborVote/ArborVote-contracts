@@ -7,11 +7,18 @@ import "../interfaces/IArbitrable.sol";
 contract MockArbitrator is IArbitrator {
     MockERC20 private token;
 
-    function createDispute(uint256 _possiblerRulings, bytes calldata _metadata) external returns (uint256) {
+    function createDispute(uint256 _possiblerRulings, bytes calldata _metadata)
+        external
+        returns (uint256)
+    {
         return 0;
     }
 
-    function submitEvidence(uint256 _disputeId, address _submitter, bytes calldata _evidence) external {}
+    function submitEvidence(
+        uint256 _disputeId,
+        address _submitter,
+        bytes calldata _evidence
+    ) external {}
 
     function closeEvidencePeriod(uint256 _disputeId) external {}
 
@@ -20,7 +27,15 @@ contract MockArbitrator is IArbitrator {
         ruling = 0;
     }
 
-    function getDisputeFees() external view returns (address recipient, ERC20 feeToken, uint256 feeAmount) {
+    function getDisputeFees()
+        external
+        view
+        returns (
+            address recipient,
+            ERC20 feeToken,
+            uint256 feeAmount
+        )
+    {
         recipient = address(0);
         feeToken = token;
         feeAmount = 123;

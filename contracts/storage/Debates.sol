@@ -61,11 +61,7 @@ library DebateLib {
         uint8 size;
     }
 
-    function getMultihash(Argument storage _argument)
-        public
-        view
-        returns (Multihash memory)
-    {
+    function getMultihash(Argument storage _argument) public view returns (Multihash memory) {
         return Multihash(_argument.digest, IPFS_HASH_FUNCTION, IPFS_HASH_SIZE);
     }
 
@@ -149,19 +145,11 @@ contract Debates is ACLHelper {
         con = debates[_id.debate].arguments[_id.argument].market.con;
     }
 
-    function getChildsImpact(DebateLib.Identifier memory _id)
-        public
-        view
-        returns (int64)
-    {
+    function getChildsImpact(DebateLib.Identifier memory _id) public view returns (int64) {
         return debates[_id.debate].arguments[_id.argument].market.childsImpact;
     }
 
-    function getDigest(DebateLib.Identifier memory _id)
-        public
-        view
-        returns (bytes32)
-    {
+    function getDigest(DebateLib.Identifier memory _id) public view returns (bytes32) {
         return debates[_id.debate].arguments[_id.argument].digest;
     }
 
@@ -173,13 +161,8 @@ contract Debates is ACLHelper {
         return debates[_id.debate].arguments[_id.argument].metadata.state;
     }
 
-    function isSupporting(DebateLib.Identifier memory _id)
-        public
-        view
-        returns (bool)
-    {
-        return
-            debates[_id.debate].arguments[_id.argument].metadata.isSupporting;
+    function isSupporting(DebateLib.Identifier memory _id) public view returns (bool) {
+        return debates[_id.debate].arguments[_id.argument].metadata.isSupporting;
     }
 
     function getParentId(DebateLib.Identifier memory _id)
@@ -190,47 +173,24 @@ contract Debates is ACLHelper {
         return
             DebateLib.Identifier({
                 debate: _id.debate,
-                argument: debates[_id.debate]
-                    .arguments[_id.argument]
-                    .metadata
-                    .parentId
+                argument: debates[_id.debate].arguments[_id.argument].metadata.parentId
             });
     }
 
-    function getDisputeId(DebateLib.Identifier memory _id)
-        public
-        view
-        returns (uint256)
-    {
+    function getDisputeId(DebateLib.Identifier memory _id) public view returns (uint256) {
         return disputes[_id.debate][_id.argument];
     }
 
-    function getDisputedArgumentsCount(uint240 _debateId)
-        public
-        view
-        returns (uint256)
-    {
+    function getDisputedArgumentsCount(uint240 _debateId) public view returns (uint256) {
         return debates[_debateId].disputedArgumentIds.length;
     }
 
-    function getLeafArgumentIds(uint240 _debateId)
-        public
-        view
-        returns (uint16[] memory)
-    {
+    function getLeafArgumentIds(uint240 _debateId) public view returns (uint16[] memory) {
         return debates[_debateId].leafArgumentIds;
     }
 
-    function getUntalliedChilds(DebateLib.Identifier memory _id)
-        public
-        view
-        returns (uint16)
-    {
-        return
-            debates[_id.debate]
-                .arguments[_id.argument]
-                .metadata
-                .untalliedChilds;
+    function getUntalliedChilds(DebateLib.Identifier memory _id) public view returns (uint16) {
+        return debates[_id.debate].arguments[_id.argument].metadata.untalliedChilds;
     }
 
     function getArgumentFinalizationTime(DebateLib.Identifier memory _id)
@@ -238,18 +198,10 @@ contract Debates is ACLHelper {
         view
         returns (uint32)
     {
-        return
-            debates[_id.debate]
-                .arguments[_id.argument]
-                .metadata
-                .finalizationTime;
+        return debates[_id.debate].arguments[_id.argument].metadata.finalizationTime;
     }
 
-    function getCreator(DebateLib.Identifier memory _id)
-        public
-        view
-        returns (address)
-    {
+    function getCreator(DebateLib.Identifier memory _id) public view returns (address) {
         return debates[_id.debate].arguments[_id.argument].metadata.creator;
     }
 
@@ -267,27 +219,18 @@ contract Debates is ACLHelper {
         external
         onlyFromContract(editing)
     {
-        debates[_debateId].arguments[
-            debates[_debateId].argumentsCount
-        ] = _argument;
+        debates[_debateId].arguments[debates[_debateId].argumentsCount] = _argument;
 
-        debates[_debateId].leafArgumentIds.removeById(
-            _argument.metadata.parentId
-        );
-        debates[_debateId]
-            .arguments[_argument.metadata.parentId]
-            .metadata
-            .untalliedChilds++;
-        debates[_debateId].leafArgumentIds.push(
-            debates[_debateId].argumentsCount
-        );
+        debates[_debateId].leafArgumentIds.removeById(_argument.metadata.parentId);
+        debates[_debateId].arguments[_argument.metadata.parentId].metadata.untalliedChilds++;
+        debates[_debateId].leafArgumentIds.push(debates[_debateId].argumentsCount);
         debates[_debateId].argumentsCount++;
     }
 
-    function setArgumentState(
-        DebateLib.Identifier memory _id,
-        DebateLib.State _state
-    ) external onlyFromContract(editing) {
+    function setArgumentState(DebateLib.Identifier memory _id, DebateLib.State _state)
+        external
+        onlyFromContract(editing)
+    {
         debates[_id.debate].arguments[_id.argument].metadata.state = _state;
     }
 
@@ -295,39 +238,31 @@ contract Debates is ACLHelper {
         external
         onlyFromContract(editing)
     {
-        debates[_id.debate].arguments[_id.argument].metadata.state = DebateLib
-            .State
-            .Disputed;
+        debates[_id.debate].arguments[_id.argument].metadata.state = DebateLib.State.Disputed;
         debates[_id.debate].disputedArgumentIds.push(_id.argument);
         disputes[_id.debate][_id.argument] = _disputeId;
     }
 
-    function clearDispute(
-        DebateLib.Identifier memory _id,
-        DebateLib.State _state
-    ) external onlyFromContract(editing) {
+    function clearDispute(DebateLib.Identifier memory _id, DebateLib.State _state)
+        external
+        onlyFromContract(editing)
+    {
         debates[_id.debate].arguments[_id.argument].metadata.state = _state;
         debates[_id.debate].disputedArgumentIds.removeById(_id.argument);
     }
 
-    function setParentId(
-        DebateLib.Identifier memory _id,
-        uint16 _parentArgumentId
-    ) external onlyFromContract(editing) {
-        debates[_id.debate]
-            .arguments[_id.argument]
-            .metadata
-            .parentId = _parentArgumentId;
+    function setParentId(DebateLib.Identifier memory _id, uint16 _parentArgumentId)
+        external
+        onlyFromContract(editing)
+    {
+        debates[_id.debate].arguments[_id.argument].metadata.parentId = _parentArgumentId;
     }
 
-    function setFinalizationTime(
-        DebateLib.Identifier memory _id,
-        uint32 _finalizationTime
-    ) external onlyFromContract(editing) {
-        debates[_id.debate]
-            .arguments[_id.argument]
-            .metadata
-            .finalizationTime = _finalizationTime;
+    function setFinalizationTime(DebateLib.Identifier memory _id, uint32 _finalizationTime)
+        external
+        onlyFromContract(editing)
+    {
+        debates[_id.debate].arguments[_id.argument].metadata.finalizationTime = _finalizationTime;
     }
 
     function setDigest(DebateLib.Identifier memory _id, bytes32 _digest)
@@ -348,10 +283,7 @@ contract Debates is ACLHelper {
         external
         onlyFromContract(tallying)
     {
-        debates[_id.debate]
-            .arguments[_id.argument]
-            .market
-            .childsImpact += _childImpact;
+        debates[_id.debate].arguments[_id.argument].market.childsImpact += _childImpact;
     }
 
     function incrementUntalliedChilds(DebateLib.Identifier memory _id)

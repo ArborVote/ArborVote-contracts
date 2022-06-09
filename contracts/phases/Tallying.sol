@@ -8,22 +8,14 @@ contract Tallying is HasStorage {
     using UtilsLib for int64;
     using UtilsLib for uint32;
 
-    function tallyTree(uint240 _debateId)
-        public
-        onlyPhase(_debateId, PhaseLib.Phase.Finished)
-    {
+    function tallyTree(uint240 _debateId) public onlyPhase(_debateId, PhaseLib.Phase.Finished) {
         require(debates.getDisputedArgumentsCount(_debateId) == 0);
 
         uint16[] memory leafArgumentIds = debates.getLeafArgumentIds(_debateId);
 
         uint256 arrayLength = leafArgumentIds.length;
         for (uint256 i = 0; i < arrayLength; i++) {
-            tallyNode(
-                DebateLib.Identifier({
-                    debate: _debateId,
-                    argument: leafArgumentIds[i]
-                })
-            );
+            tallyNode(DebateLib.Identifier({debate: _debateId, argument: leafArgumentIds[i]}));
         }
 
         phases.setFinished(_debateId);
@@ -40,10 +32,7 @@ contract Tallying is HasStorage {
         own = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
 
         own =
-            own.multipyByFraction(
-                type(int64).max - int64(DebateLib.MIXING),
-                type(int64).max
-            ) +
+            own.multipyByFraction(type(int64).max - int64(DebateLib.MIXING), type(int64).max) +
             (debates.getChildsImpact(_arg)).multipyByFraction(
                 int64(DebateLib.MIXING),
                 type(int64).max

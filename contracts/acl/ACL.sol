@@ -24,10 +24,7 @@ library ACLData {
 
 contract ACL is Initializable {
     bytes32 public constant ROOT_ROLE =
-        this.grant.selector ^
-            this.revoke.selector ^
-            this.freeze.selector ^
-            this.bulk.selector;
+        this.grant.selector ^ this.revoke.selector ^ this.freeze.selector ^ this.bulk.selector;
 
     // "Who" constants
     address internal constant ANY_ADDR = address(type(uint160).max);
@@ -49,12 +46,7 @@ contract ACL is Initializable {
         address where,
         IACLOracle oracle
     );
-    event Revoked(
-        bytes32 indexed role,
-        address indexed actor,
-        address indexed who,
-        address where
-    );
+    event Revoked(bytes32 indexed role, address indexed actor, address indexed who, address where);
     event Frozen(bytes32 indexed role, address indexed actor, address where);
 
     modifier auth(address _where, bytes32 _role) {
@@ -91,10 +83,7 @@ contract ACL is Initializable {
         _revoke(_where, _who, _role);
     }
 
-    function freeze(address _where, bytes32 _role)
-        external
-        auth(address(this), ROOT_ROLE)
-    {
+    function freeze(address _where, bytes32 _role) external auth(address(this), ROOT_ROLE) {
         _freeze(_where, _role);
     }
 
@@ -105,12 +94,9 @@ contract ACL is Initializable {
         for (uint256 i = 0; i < items.length; i++) {
             ACLData.BulkItem memory item = items[i];
 
-            if (item.op == ACLData.BulkOp.Grant)
-                _grant(_where, item.who, item.role);
-            else if (item.op == ACLData.BulkOp.Revoke)
-                _revoke(_where, item.who, item.role);
-            else if (item.op == ACLData.BulkOp.Freeze)
-                _freeze(_where, item.role);
+            if (item.op == ACLData.BulkOp.Grant) _grant(_where, item.who, item.role);
+            else if (item.op == ACLData.BulkOp.Revoke) _revoke(_where, item.who, item.role);
+            else if (item.op == ACLData.BulkOp.Freeze) _freeze(_where, item.role);
         }
     }
 
@@ -126,11 +112,7 @@ contract ACL is Initializable {
             _checkRole(ANY_ADDR, _who, _role, _data); // check if _who is eligible for _role on any contract.
     }
 
-    function isFrozen(address _where, bytes32 _role)
-        public
-        view
-        returns (bool)
-    {
+    function isFrozen(address _where, bytes32 _role) public view returns (bool) {
         return freezePermissions[freezeHash(_where, _role)];
     }
 
@@ -155,10 +137,7 @@ contract ACL is Initializable {
         require(!isFrozen(_where, _role), "acl: frozen");
 
         bytes32 permission = permissionHash(_where, _who, _role);
-        require(
-            authPermissions[permission] == UNSET_ROLE,
-            "acl: role already granted"
-        );
+        require(authPermissions[permission] == UNSET_ROLE, "acl: role already granted");
         authPermissions[permission] = address(_oracle);
 
         emit Granted(_role, msg.sender, _who, _where, _oracle);
@@ -172,10 +151,7 @@ contract ACL is Initializable {
         require(!isFrozen(_where, _role), "acl: frozen");
 
         bytes32 permission = permissionHash(_where, _who, _role);
-        require(
-            authPermissions[permission] != UNSET_ROLE,
-            "acl: role already revoked"
-        );
+        require(authPermissions[permission] != UNSET_ROLE, "acl: role already revoked");
         authPermissions[permission] = UNSET_ROLE;
 
         emit Revoked(_role, msg.sender, _who, _where);
@@ -197,22 +173,15 @@ contract ACL is Initializable {
         bytes32 _role,
         bytes memory _data
     ) internal returns (bool) {
-        address accessFlagOrAclOracle = authPermissions[
-            permissionHash(_where, _who, _role)
-        ];
+        address accessFlagOrAclOracle = authPermissions[permissionHash(_where, _who, _role)];
 
         if (accessFlagOrAclOracle == UNSET_ROLE) return false;
         if (accessFlagOrAclOracle == ALLOW_FLAG) return true;
 
         // Since it's not a flag, assume it's an ACLOracle and try-catch to skip failures
-        try
-            IACLOracle(accessFlagOrAclOracle).willPerform(
-                _where,
-                _who,
-                _role,
-                _data
-            )
-        returns (bool allowed) {
+        try IACLOracle(accessFlagOrAclOracle).willPerform(_where, _who, _role, _data) returns (
+            bool allowed
+        ) {
             if (allowed) return true;
         } catch {}
 
@@ -227,11 +196,7 @@ contract ACL is Initializable {
         return keccak256(abi.encodePacked("PERMISSION", _who, _where, _role));
     }
 
-    function freezeHash(address _where, bytes32 _role)
-        internal
-        pure
-        returns (bytes32)
-    {
+    function freezeHash(address _where, bytes32 _role) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("FREEZE", _where, _role));
     }
 }

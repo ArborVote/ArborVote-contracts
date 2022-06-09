@@ -3,12 +3,12 @@ pragma solidity ^0.8.0;
 
 import "../interfaces/IProofOfHumanity.sol";
 
-contract MockProofOfHumanity is IProofOfHumanity  {
+contract MockProofOfHumanity is IProofOfHumanity {
     function isRegistered(address _submissionID) external view returns (bool) {
         return true;
     }
 
-    function submissionCounter() external view returns (uint){
+    function submissionCounter() external view returns (uint256) {
         return 1;
     }
 }

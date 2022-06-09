@@ -24,22 +24,17 @@ contract Voting is HasStorage {
         // TODO is this really always the order? Does this stem from the pair?
     }
 
-    function calculateMint(
-        DebateLib.Identifier memory _id,
-        uint32 _voteTokenAmount
-    ) public view returns (DebateLib.InvestmentData memory data) {
+    function calculateMint(DebateLib.Identifier memory _id, uint32 _voteTokenAmount)
+        public
+        view
+        returns (DebateLib.InvestmentData memory data)
+    {
         (uint32 pro, uint32 con) = debates.getArgumentTokens(_id);
 
         data.voteTokensInvested = _voteTokenAmount;
 
-        data.fee = _voteTokenAmount.multipyByFraction(
-            DebateLib.FEE_PERCENTAGE,
-            100
-        );
-        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(
-            pro,
-            con
-        );
+        data.fee = _voteTokenAmount.multipyByFraction(DebateLib.FEE_PERCENTAGE, 100);
+        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(pro, con);
 
         data.proMint = proMint;
         data.conMint = conMint;

@@ -34,10 +34,7 @@ contract ArborVote is HasStorage {
         tallying.initializeStorage(_phases, _debates, _users);
     }
 
-    function createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
-        external
-        returns (uint240)
-    {
+    function createDebate(bytes32 _ipfsHash, uint32 _timeUnit) external returns (uint240) {
         return _createDebate(_ipfsHash, _timeUnit);
     }
 
@@ -59,14 +56,7 @@ contract ArborVote is HasStorage {
                 state: DebateLib.State.Final
             }),
             digest: _ipfsHash,
-            market: DebateLib.Vault({
-                pro: 0,
-                con: 0,
-                const: 0,
-                vote: 0,
-                fees: 0,
-                childsImpact: 0
-            })
+            market: DebateLib.Vault({pro: 0, con: 0, const: 0, vote: 0, fees: 0, childsImpact: 0})
         });
 
         debateId = debates.debatesCount();
@@ -98,9 +88,6 @@ contract ArborVote is HasStorage {
                 actual: phases.getPhase(_debateId)
             });
 
-        return
-            debates.getChildsImpact(
-                DebateLib.Identifier({debate: _debateId, argument: 0})
-            ) > 0;
+        return debates.getChildsImpact(DebateLib.Identifier({debate: _debateId, argument: 0})) > 0;
     }
 }
