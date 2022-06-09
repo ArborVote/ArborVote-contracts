@@ -1,6 +1,7 @@
 import {task} from "hardhat/config";
 import "hardhat-gas-reporter";
 import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-solhint";
 import { config as dotenvConfig } from 'dotenv'
 import { resolve } from 'path'
 dotenvConfig({ path: resolve(__dirname, './.env') })
