@@ -35,7 +35,13 @@ contract ArborVote is HasStorage {
     }
 
     function createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
-    public
+    external
+    returns (uint240) {
+        return _createDebate(_ipfsHash, _timeUnit);
+    }
+
+    function _createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
+    internal
     onlyArgumentState(DebateLib.Identifier({debate: debates.debatesCount(), argument: 0}), DebateLib.State.Unitialized)
     returns (uint240 debateId)
     {
@@ -73,12 +79,16 @@ contract ArborVote is HasStorage {
         users.initializeUser(_debateId, msg.sender);
     }
 
-    function updatePhase(uint240 _debateId) public {
+    function updatePhase(uint240 _debateId) external {
+        _updatePhase(_debateId);
+    }
+
+    function _updatePhase(uint240 _debateId) internal {
         phases.updatePhase(_debateId);
     }
 
     function debateResult(uint240 _debateId)
-    public view
+    external view
     returns (bool)
     {
         if (phases.getPhase(_debateId) != PhaseLib.Phase.Finished)
