@@ -1,6 +1,10 @@
 import {ethers} from 'hardhat';
 import {Contract, BigNumber} from 'ethers';
-import chai from 'chai';
+import {expect} from 'chai';
+
+function toBytes(string: string) {
+  return ethers.utils.formatBytes32String(string);
+}
 
 describe('DebateFactory', function() {
   let debates: Contract;
@@ -10,10 +14,11 @@ describe('DebateFactory', function() {
   let voting: Contract;
   let tallying: Contract;
   let utilsLib: Contract;
+  let arborVote: Contract;
 
-  let mockProofOfHumanityContract: Contract;
-  let mockERC20Contract: Contract;
-  let mockArbitratorContract: Contract;
+  let mockProofOfHumanity: Contract;
+  let mockERC20: Contract;
+  let mockArbitrator: Contract;
   let sender: string;
 
   beforeEach(async function() {
@@ -55,41 +60,67 @@ describe('DebateFactory', function() {
     const MockProofOfHumanity = await ethers.getContractFactory(
       'MockProofOfHumanity'
     );
-    mockProofOfHumanityContract = await MockProofOfHumanity.deploy();
-    await mockProofOfHumanityContract.deployed();
-
-    const MockERC20 = await ethers.getContractFactory('MockERC20');
-    mockERC20Contract = await MockERC20.deploy(1000, sender);
-    await mockERC20Contract.deployed();
+    mockProofOfHumanity = await MockProofOfHumanity.deploy();
+    await mockProofOfHumanity.deployed();
 
     const MockArbitrator = await ethers.getContractFactory('MockArbitrator');
-    mockArbitratorContract = await MockArbitrator.deploy();
-    await mockArbitratorContract.deployed();
+    mockArbitrator = await MockArbitrator.deploy();
+    await mockArbitrator.deployed();
+
+    const ArborVote = await ethers.getContractFactory('ArborVote');
+    arborVote = await ArborVote.deploy();
+    await arborVote.deployed();
+
+    const MockERC20 = await ethers.getContractFactory('MockERC20');
+    mockERC20 = await MockERC20.deploy(1000, sender);
+    await mockERC20.deployed();
+    await mockERC20.approve(arborVote.address, 1000);
   });
 
-  describe('initialize', function() {
+  async function arborVoteInitHelper() {
+    await arborVote.initialize(
+      phases.address,
+      debates.address,
+      users.address,
+      editing.address,
+      voting.address,
+      tallying.address,
+      mockProofOfHumanity.address
+    );
+  }
+
+  describe('initialize', async function() {
     it('initializes the contract', async function() {
-      const ArborVote = await ethers.getContractFactory('ArborVote');
-      const arborVote = await ArborVote.deploy();
-      await arborVote.deployed();
+      expect(await arborVoteInitHelper());
+    });
+  });
 
-      await arborVote.initialize(
-        phases.address,
-        debates.address,
-        users.address,
-        editing.address,
-        voting.address,
-        tallying.address,
-        mockProofOfHumanityContract.address
-      );
+  describe('createDebate', async function() {
+    it('creates a debate and allows to join', async function() {
+      await arborVoteInitHelper();
+      const thesis = toBytes('We should do XYZ');
 
-      // Approve ERC token
-      await mockERC20Contract.approve(await arborVote.address, 1000);
+      const timeUnit = 1 * 60; // 1 minute
+      const id = await arborVote.callStatic.createDebate(thesis, timeUnit);
+      expect(id).to.equal(0);
 
-      const ipfsHash = ethers.utils.formatBytes32String('test');
+      let tx = await arborVote.createDebate(thesis, timeUnit);
+      let rc = await tx.wait();
 
-      const id = await arborVote.createDebate(ipfsHash, 12345);
-      await arborVote.join(id.value);
+      tx = await arborVote.join(id);
+      tx.wait();
+
+      editing.addArgument([0, 0], toBytes('This is a good idea.'), true, 51);
+
+      // suppose the current block has a timestamp of 01:00 PM
+      await ethers.provider.send('evm_increaseTime', [10 * timeUnit]);
+      await ethers.provider.send('evm_mine', []); // this one will have 02:00 PM as its timestamp
+
+      tx = await arborVote.updatePhase(id);
+      rc = await tx.wait();
+      await ethers.provider.send('evm_mine', []);
+
+      console.log('here', await arborVote.debateResult(id));
     });
   });
 });

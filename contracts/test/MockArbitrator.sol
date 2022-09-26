@@ -9,8 +9,10 @@ contract MockArbitrator is IArbitrator {
 
     function createDispute(uint256 _possiblerRulings, bytes calldata _metadata)
         external
+        pure
         returns (uint256)
     {
+        (_possiblerRulings, _metadata);
         return 0;
     }
 
@@ -22,7 +24,8 @@ contract MockArbitrator is IArbitrator {
 
     function closeEvidencePeriod(uint256 _disputeId) external {}
 
-    function rule(uint256 _disputeId) external returns (address subject, uint256 ruling) {
+    function rule(uint256 _disputeId) external pure returns (address subject, uint256 ruling) {
+        (_disputeId);
         subject = address(0);
         ruling = 0;
     }
@@ -41,7 +44,7 @@ contract MockArbitrator is IArbitrator {
         feeAmount = 123;
     }
 
-    function getPaymentsRecipient() external view returns (address) {
+    function getPaymentsRecipient() external pure returns (address) {
         return address(0);
     }
 }
