@@ -145,7 +145,6 @@ contract ArborVote is IArbitrable {
     error WrongRole(UserLib.Role expected, UserLib.Role actual);
     error WrongAddress(address expected, address actual);
 
-    function initialize() external {}
 
     modifier onlyPhase(uint256 _debateId, PhaseLib.Phase _phase) {
         _onlyPhase(_debateId, _phase);
@@ -220,21 +219,25 @@ contract ArborVote is IArbitrable {
         DebateLib.Debate storage currentDebate_ = debates[debatesCount]; 
         DebateLib.Argument storage rootArgument_ = currentDebate_.arguments[0];
         
+        // Create the root argument of the tree
         rootArgument_.metadata.creator = msg.sender; 
         rootArgument_.metadata.finalizationTime = uint32(block.timestamp);
         rootArgument_.metadata.isSupporting = true;
         rootArgument_.metadata.state = DebateLib.State.Final;
-
         rootArgument_.digest = _ipfsHash;
 
-        // increment counter
         debateId = debatesCount; // TODO use OZ counter
-        debatesCount++;
 
-        _initializePhases(debateId, _timeUnit);
+        // Store the phase related data
+        PhaseLib.PhaseData storage phaseData_ = phases[debateId];
+        phaseData_.currentPhase = PhaseLib.Phase.Editing;
+        phaseData_.timeUnit = _timeUnit;
+        phaseData_.editingEndTime = uint32(block.timestamp + 7 * _timeUnit);
+        phaseData_.votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
 
         // increment counters
         currentDebate_.argumentsCount++;
+        debatesCount++;
         
     }
 
@@ -539,13 +542,7 @@ contract ArborVote is IArbitrable {
         phases[_debateId].currentPhase = PhaseLib.Phase.Finished;
     } */
 
-    function _initializePhases(uint256 _debateId, uint32 _timeUnit) internal {
-        PhaseLib.PhaseData storage phaseData_ = phases[_debateId];
-        phaseData_.currentPhase = PhaseLib.Phase.Editing;
-        phaseData_.timeUnit = _timeUnit;
-        phaseData_.editingEndTime = uint32(block.timestamp + 7 * _timeUnit);
-        phaseData_.votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
-    }
+ 
 
     function _executeProInvestment(
         DebateLib.Identifier memory _arg,
