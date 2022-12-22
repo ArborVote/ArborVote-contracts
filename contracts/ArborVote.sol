@@ -8,7 +8,6 @@ import "./interfaces/IArbitrable.sol";
 import "./interfaces/IProofOfHumanity.sol";
 
 library DebateLib {
-
     uint16 internal constant MAX_ARGUMENTS = type(uint16).max;
 
     // TODO make parameters
@@ -72,7 +71,7 @@ library DebateLib {
 }
 
 library UserLib {
-    uint16 internal constant MAX_ARGUMENTS = 2**16 - 1;
+    uint16 internal constant MAX_ARGUMENTS = 2 ** 16 - 1;
     uint32 internal constant INITIAL_TOKENS = 100;
 
     enum Role {
@@ -118,7 +117,7 @@ contract ArborVote is IArbitrable {
 
     IProofOfHumanity private pohProxy; // PoH mainnet: 0x1dAD862095d40d43c2109370121cf087632874dB
 
-    uint16 constant MAX_ARGUMENTS = 2**16 - 1;
+    uint16 constant MAX_ARGUMENTS = 2 ** 16 - 1;
     uint32 constant INITIAL_TOKENS = 100;
 
     uint32 public totalVotes;
@@ -145,7 +144,6 @@ contract ArborVote is IArbitrable {
     error WrongRole(UserLib.Role expected, UserLib.Role actual);
     error WrongAddress(address expected, address actual);
 
-
     modifier onlyPhase(uint256 _debateId, PhaseLib.Phase _phase) {
         _onlyPhase(_debateId, _phase);
         _;
@@ -171,10 +169,10 @@ contract ArborVote is IArbitrable {
         _;
     }
 
-    function _onlyArgumentState(DebateLib.Identifier memory _arg, DebateLib.State _state)
-        internal
-        view
-    {
+    function _onlyArgumentState(
+        DebateLib.Identifier memory _arg,
+        DebateLib.State _state
+    ) internal view {
         if (debates[_arg.debate].arguments[_arg.argument].metadata.state != _state)
             revert WrongState({
                 expected: _state,
@@ -188,7 +186,6 @@ contract ArborVote is IArbitrable {
     }
 
     function _onlyCreator(DebateLib.Identifier memory _arg) internal view {
-        
         if (msg.sender != debates[_arg.debate].arguments[_arg.argument].metadata.creator)
             revert WrongAddress({
                 expected: debates[_arg.debate].arguments[_arg.argument].metadata.creator,
@@ -206,7 +203,10 @@ contract ArborVote is IArbitrable {
             revert WrongRole({expected: _role, actual: users[_debateId][msg.sender].role});
     }
 
-    function createDebate(bytes32 _ipfsHash, uint32 _timeUnit)
+    function createDebate(
+        bytes32 _ipfsHash,
+        uint32 _timeUnit
+    )
         external
         onlyArgumentState(
             DebateLib.Identifier({debate: debatesCount, argument: 0}),
@@ -216,11 +216,11 @@ contract ArborVote is IArbitrable {
     {
         // Create the root Argument
 
-        DebateLib.Debate storage currentDebate_ = debates[debatesCount]; 
+        DebateLib.Debate storage currentDebate_ = debates[debatesCount];
         DebateLib.Argument storage rootArgument_ = currentDebate_.arguments[0];
-        
+
         // Create the root argument of the tree
-        rootArgument_.metadata.creator = msg.sender; 
+        rootArgument_.metadata.creator = msg.sender;
         rootArgument_.metadata.finalizationTime = uint32(block.timestamp);
         rootArgument_.metadata.isSupporting = true;
         rootArgument_.metadata.state = DebateLib.State.Final;
@@ -238,9 +238,7 @@ contract ArborVote is IArbitrable {
         // increment counters
         currentDebate_.argumentsCount++;
         debatesCount++;
-        
     }
-
 
     function updatePhase(uint240 _debateId) public {
         uint32 currentTime = uint32(block.timestamp);
@@ -260,7 +258,9 @@ contract ArborVote is IArbitrable {
         }
     }
 
-    function join(uint240 _debateId)
+    function join(
+        uint240 _debateId
+    )
         external
         excludePhase(_debateId, PhaseLib.Phase.Finished)
         onlyRole(_debateId, UserLib.Role.Unassigned)
@@ -281,19 +281,14 @@ contract ArborVote is IArbitrable {
 
     function _initializeParticipant(uint240 _debateId, address _user) internal {
         UserLib.User storage user_ = users[_debateId][_user];
-        
+
         user_.role = UserLib.Role.Participant;
         user_.tokens = UserLib.INITIAL_TOKENS;
     }
 
-
-
-
-
-    function finalizeArgument(DebateLib.Identifier calldata _arg)
-        public
-        onlyArgumentState(_arg, DebateLib.State.Created)
-    {
+    function finalizeArgument(
+        DebateLib.Identifier calldata _arg
+    ) public onlyArgumentState(_arg, DebateLib.State.Created) {
         require(
             debates[_arg.debate].arguments[_arg.argument].metadata.finalizationTime <=
                 uint32(block.timestamp)
@@ -358,7 +353,10 @@ contract ArborVote is IArbitrable {
         );
     }
 
-    function moveArgument(DebateLib.Identifier memory _arg, uint16 _newParentArgumentId)
+    function moveArgument(
+        DebateLib.Identifier memory _arg,
+        uint16 _newParentArgumentId
+    )
         external
         onlyPhase(_arg.debate, PhaseLib.Phase.Editing)
         onlyCreator(_arg)
@@ -394,7 +392,10 @@ contract ArborVote is IArbitrable {
         debates[_arg.debate].arguments[_newParentArgumentId].metadata.untalliedChilds++;
     }
 
-    function alterArgument(DebateLib.Identifier memory _arg, bytes32 _ipfsHash)
+    function alterArgument(
+        DebateLib.Identifier memory _arg,
+        bytes32 _ipfsHash
+    )
         external
         onlyPhase(_arg.debate, PhaseLib.Phase.Editing)
         onlyCreator(_arg)
@@ -411,7 +412,10 @@ contract ArborVote is IArbitrable {
         debates[_arg.debate].arguments[_arg.argument].digest = _ipfsHash;
     }
 
-    function challenge(DebateLib.Identifier memory _arg, bytes calldata _reason)
+    function challenge(
+        DebateLib.Identifier memory _arg,
+        bytes calldata _reason
+    )
         external
         onlyPhase(_arg.debate, PhaseLib.Phase.Editing)
         onlyArgumentState(_arg, DebateLib.State.Final)
@@ -435,10 +439,7 @@ contract ArborVote is IArbitrable {
             arbitrator.submitEvidence(
                 disputeId,
                 msg.sender,
-                abi.encode(
-                    _arg,
-                    debates[_arg.debate].arguments[_arg.argument].digest
-                )
+                abi.encode(_arg, debates[_arg.debate].arguments[_arg.argument].digest)
             );
             arbitrator.submitEvidence(disputeId, msg.sender, _reason);
             arbitrator.closeEvidencePeriod(disputeId);
@@ -450,7 +451,9 @@ contract ArborVote is IArbitrable {
         emit Challenged(disputeId, _arg, _reason);
     }
 
-    function resolve(DebateLib.Identifier memory _arg)
+    function resolve(
+        DebateLib.Identifier memory _arg
+    )
         external
         onlyPhase(_arg.debate, PhaseLib.Phase.Editing)
         onlyArgumentState(_arg, DebateLib.State.Disputed)
@@ -471,11 +474,10 @@ contract ArborVote is IArbitrable {
         emit Resolved(disputeId, _arg);
     }
 
-    function calculateMint(DebateLib.Identifier memory _arg, uint32 _voteTokenAmount)
-        public
-        view
-        returns (DebateLib.InvestmentData memory data)
-    {
+    function calculateMint(
+        DebateLib.Identifier memory _arg,
+        uint32 _voteTokenAmount
+    ) public view returns (DebateLib.InvestmentData memory data) {
         data.voteTokensInvested = _voteTokenAmount;
 
         data.fee = _voteTokenAmount.multipyByFraction(DebateLib.FEE_PERCENTAGE, 100);
@@ -491,10 +493,10 @@ contract ArborVote is IArbitrable {
         data.conSwap = _calculateSwap(proMint, conMint, proMint);
     }
 
-    function investInPro(DebateLib.Identifier memory _arg, uint32 _amount)
-        external
-        onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
-    {
+    function investInPro(
+        DebateLib.Identifier memory _arg,
+        uint32 _amount
+    ) external onlyPhase(_arg.debate, PhaseLib.Phase.Voting) {
         UserLib.User storage user_ = users[_arg.debate][msg.sender];
 
         require(user_.tokens >= _amount);
@@ -510,10 +512,10 @@ contract ArborVote is IArbitrable {
         emit Invested(msg.sender, _arg, data);
     }
 
-    function investInCon(DebateLib.Identifier memory _arg, uint32 _amount)
-        external
-        onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
-    {
+    function investInCon(
+        DebateLib.Identifier memory _arg,
+        uint32 _amount
+    ) external onlyPhase(_arg.debate, PhaseLib.Phase.Voting) {
         UserLib.User storage user_ = users[_arg.debate][msg.sender];
 
         require(user_.tokens >= _amount);
@@ -529,7 +531,7 @@ contract ArborVote is IArbitrable {
         emit Invested(msg.sender, _arg, data);
     }
 
-    /*     function tallyTree(uint240 _debateId) external onlyPhase(_debateId, PhaseLib.Phase.Finished) {
+    function tallyTree(uint240 _debateId) external onlyPhase(_debateId, PhaseLib.Phase.Finished) {
         require(debates[_debateId].disputedArgumentIds.length == 0); // TODO: because things are finished, we can assume this is zero
 
         uint16[] memory leafArgumentIds = debates[_debateId].leafArgumentIds;
@@ -540,9 +542,7 @@ contract ArborVote is IArbitrable {
         }
 
         phases[_debateId].currentPhase = PhaseLib.Phase.Finished;
-    } */
-
- 
+    }
 
     function _executeProInvestment(
         DebateLib.Identifier memory _arg,
@@ -550,7 +550,7 @@ contract ArborVote is IArbitrable {
     ) internal {
         uint32 votes = data.voteTokensInvested - data.fee;
         totalVotes += votes;
-        
+
         DebateLib.Market storage market_ = debates[_arg.debate].arguments[_arg.argument].market;
 
         market_.vote += votes;
@@ -567,7 +567,7 @@ contract ArborVote is IArbitrable {
         totalVotes += votes;
 
         DebateLib.Market storage market_ = debates[_arg.debate].arguments[_arg.argument].market;
-        
+
         market_.vote += votes;
         market_.fees += data.fee;
         market_.pro += data.proMint;
@@ -603,20 +603,14 @@ contract ArborVote is IArbitrable {
     }
 
     // TODO add explanation
-    function _calculateSwap(
-        uint32 _pro,
-        uint32 _con,
-        uint32 _swap
-    ) internal pure returns (uint32) {
+    function _calculateSwap(uint32 _pro, uint32 _con, uint32 _swap) internal pure returns (uint32) {
         return _pro - _pro / (1 + _swap / _con);
         // TODO is this really always the order? Does this stem from the pair?
     }
-    /* 
-    function _calculateOwnImpact(DebateLib.Identifier memory _arg)
-        internal
-        view
-        returns (int64 own)
-    {
+
+    function _calculateOwnImpact(
+        DebateLib.Identifier memory _arg
+    ) internal view returns (int64 own) {
         uint32 pro = debates[_arg.debate].arguments[_arg.argument].market.pro;
         uint32 con = debates[_arg.debate].arguments[_arg.argument].market.con;
 
@@ -649,5 +643,5 @@ contract ArborVote is IArbitrable {
         if (debates[_arg.debate].arguments[_arg.argument].metadata.untalliedChilds == 0) {
             _tallyNode(DebateLib.Identifier({debate: _arg.debate, argument: parentId}));
         }
-    } */
+    }
 }
