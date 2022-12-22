@@ -8,8 +8,6 @@ import "./interfaces/IArbitrable.sol";
 import "./interfaces/IProofOfHumanity.sol";
 
 library DebateLib {
-    // https://docs.ipfs.io/concepts/content-addressing/
-    // https://richardschneider.github.io/net-ipfs-core/articles/multihash.html
 
     uint16 internal constant MAX_ARGUMENTS = type(uint16).max;
 
@@ -55,16 +53,6 @@ library DebateLib {
         bytes32 digest; // 32 bytes
         Market market; // 32 Bytes
     } // 3x 32 bytes
-
-    /*     struct Multihash {
-        bytes32 digest;
-        uint8 hashFunction;
-        uint8 size;
-    }
-
-    function getMultihash(Argument storage _argument) public view returns (Multihash memory) {
-        return Multihash(_argument.digest, IPFS_HASH_FUNCTION, IPFS_HASH_SIZE);
-    } */
 
     struct Debate {
         uint16 argumentsCount;
@@ -447,9 +435,6 @@ contract ArborVote is IArbitrable {
                 abi.encode(
                     _arg,
                     debates[_arg.debate].arguments[_arg.argument].digest
-                    //,
-                    //DebateLib.IPFS_HASH_FUNCTION,
-                    //DebateLib.IPFS_HASH_SIZE
                 )
             );
             arbitrator.submitEvidence(disputeId, msg.sender, _reason);
