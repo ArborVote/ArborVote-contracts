@@ -291,26 +291,13 @@ contract ArborVote is IArbitrable {
 
     function _initializeDebate(DebateLib.Argument memory rootArgument) internal {
         debates[debatesCount].arguments[0] = rootArgument;
+        
         // increment counters
         debates[debatesCount].argumentsCount++;
         debatesCount++;
     }
 
-    function addProTokens(
-        DebateLib.Identifier memory _arg,
-        address _user,
-        uint32 _amount
-    ) internal {
-        users[_arg.debate][_user].shares[_arg.argument].pro += _amount;
-    }
 
-    function addConTokens(
-        DebateLib.Identifier memory _arg,
-        address _user,
-        uint32 _amount
-    ) internal {
-        users[_arg.debate][_user].shares[_arg.argument].con += _amount;
-    }
 
     function finalizeArgument(DebateLib.Identifier memory _arg)
         public
@@ -520,15 +507,17 @@ contract ArborVote is IArbitrable {
         external
         onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
     {
-        require(users[_arg.debate][msg.sender].tokens >= _amount);
-        users[_arg.debate][msg.sender].tokens -= _amount;
+        UserLib.User storage user_ = users[_arg.debate][msg.sender];
+
+        require(user_.tokens >= _amount);
+        user_.tokens -= _amount;
 
         DebateLib.InvestmentData memory data = calculateMint(_arg, _amount);
         _executeProInvestment(_arg, data);
 
         data.conSwap = 0;
 
-        addProTokens(_arg, msg.sender, data.proMint + data.proSwap);
+        user_.shares[_arg.argument].pro += _amount;
 
         emit Invested(msg.sender, _arg, data);
     }
@@ -537,15 +526,17 @@ contract ArborVote is IArbitrable {
         external
         onlyPhase(_arg.debate, PhaseLib.Phase.Voting)
     {
-        require(users[_arg.debate][msg.sender].tokens >= _amount);
-        users[_arg.debate][msg.sender].tokens -= _amount;
+        UserLib.User storage user_ = users[_arg.debate][msg.sender];
+
+        require(user_.tokens >= _amount);
+        user_.tokens -= _amount;
 
         DebateLib.InvestmentData memory data = calculateMint(_arg, _amount);
         _executeConInvestment(_arg, data);
 
         data.proSwap = 0;
 
-        addConTokens(_arg, msg.sender, data.conMint + data.conSwap);
+        user_.shares[_arg.argument].con += _amount;
 
         emit Invested(msg.sender, _arg, data);
     }
