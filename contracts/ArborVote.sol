@@ -248,16 +248,18 @@ contract ArborVote is IArbitrable {
     function updatePhase(uint240 _debateId) public {
         uint32 currentTime = uint32(block.timestamp);
 
+        PhaseLib.PhaseData storage phase_ = phases[_debateId];
+
         if (
-            currentTime > phases[_debateId].votingEndTime &&
-            phases[_debateId].currentPhase != PhaseLib.Phase.Finished
+            currentTime > phase_.votingEndTime &&
+            phase_.currentPhase != PhaseLib.Phase.Finished
         ) {
-            phases[_debateId].currentPhase = PhaseLib.Phase.Finished;
+            phase_.currentPhase = PhaseLib.Phase.Finished;
         } else if (
-            currentTime > phases[_debateId].editingEndTime &&
-            phases[_debateId].currentPhase != PhaseLib.Phase.Voting
+            currentTime > phase_.editingEndTime &&
+            phase_.currentPhase != PhaseLib.Phase.Voting
         ) {
-            phases[_debateId].currentPhase = PhaseLib.Phase.Voting;
+            phase_.currentPhase = PhaseLib.Phase.Voting;
         }
     }
 
@@ -281,8 +283,10 @@ contract ArborVote is IArbitrable {
     }
 
     function _initializeParticipant(uint240 _debateId, address _user) internal {
-        users[_debateId][_user].role = UserLib.Role.Participant;
-        users[_debateId][_user].tokens = UserLib.INITIAL_TOKENS;
+        UserLib.User storage user_ = users[_debateId][_user];
+        
+        user_.role = UserLib.Role.Participant;
+        user_.tokens = UserLib.INITIAL_TOKENS;
     }
 
     function _initializeDebate(DebateLib.Argument memory rootArgument) internal {
@@ -573,10 +577,12 @@ contract ArborVote is IArbitrable {
         uint32 votes = data.voteTokensInvested - data.fee;
         totalVotes += votes;
         
-        debates[_arg.debate].arguments[_arg.argument].market.vote += votes;
-        debates[_arg.debate].arguments[_arg.argument].market.fees += data.fee;
-        debates[_arg.debate].arguments[_arg.argument].market.con += data.conMint;
-        debates[_arg.debate].arguments[_arg.argument].market.pro -= data.proSwap;
+        DebateLib.Market storage market_ = debates[_arg.debate].arguments[_arg.argument].market;
+
+        market_.vote += votes;
+        market_.fees += data.fee;
+        market_.con += data.conMint;
+        market_.pro -= data.proSwap;
     }
 
     function _executeConInvestment(
@@ -585,31 +591,41 @@ contract ArborVote is IArbitrable {
     ) internal {
         uint32 votes = data.voteTokensInvested - data.fee;
         totalVotes += votes;
-        debates[_arg.debate].arguments[_arg.argument].market.vote += votes;
-        debates[_arg.debate].arguments[_arg.argument].market.fees += data.fee;
-        debates[_arg.debate].arguments[_arg.argument].market.pro += data.proMint;
-        debates[_arg.debate].arguments[_arg.argument].market.con -= data.conSwap;
+
+        DebateLib.Market storage market_ = debates[_arg.debate].arguments[_arg.argument].market;
+        
+        market_.vote += votes;
+        market_.fees += data.fee;
+        market_.pro += data.proMint;
+        market_.con -= data.conSwap;
     }
 
     function _addArgument(uint240 _debateId, DebateLib.Argument memory _argument) internal {
-        debates[_debateId].arguments[debates[_debateId].argumentsCount] = _argument;
+        DebateLib.Debate storage debate_ = debates[_debateId];
+
+        debate_.arguments[debates[_debateId].argumentsCount] = _argument;
         if (_argument.metadata.parentId != 0) {
-            debates[_debateId].leafArgumentIds.removeById(_argument.metadata.parentId);
+            debate_.leafArgumentIds.removeById(_argument.metadata.parentId);
         }
-        debates[_debateId].arguments[_argument.metadata.parentId].metadata.untalliedChilds++;
-        debates[_debateId].leafArgumentIds.push(debates[_debateId].argumentsCount);
-        debates[_debateId].argumentsCount++;
+        debate_.arguments[_argument.metadata.parentId].metadata.untalliedChilds++;
+        debate_.leafArgumentIds.push(debates[_debateId].argumentsCount);
+        debate_.argumentsCount++;
     }
 
     function _addDispute(DebateLib.Identifier memory _arg, uint256 _disputeId) internal {
-        debates[_arg.debate].arguments[_arg.argument].metadata.state = DebateLib.State.Disputed;
-        debates[_arg.debate].disputedArgumentIds.push(_arg.argument);
+        DebateLib.Debate storage debate_ = debates[_arg.debate];
+
+        debate_.arguments[_arg.argument].metadata.state = DebateLib.State.Disputed;
+        debate_.disputedArgumentIds.push(_arg.argument);
+
         disputes[_arg.debate][_arg.argument] = _disputeId;
     }
 
     function _clearDispute(DebateLib.Identifier memory _arg, DebateLib.State _state) internal {
-        debates[_arg.debate].arguments[_arg.argument].metadata.state = _state;
-        debates[_arg.debate].disputedArgumentIds.removeById(_arg.argument);
+        DebateLib.Debate storage debate_ = debates[_arg.debate];
+
+        debate_.arguments[_arg.argument].metadata.state = _state;
+        debate_.disputedArgumentIds.removeById(_arg.argument);
     }
 
     // TODO add explanation
