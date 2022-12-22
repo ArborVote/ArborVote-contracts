@@ -189,6 +189,7 @@ contract ArborVote is IArbitrable {
     }
 
     function _onlyCreator(DebateLib.Identifier memory _arg) internal view {
+        
         if (msg.sender != debates[_arg.debate].arguments[_arg.argument].metadata.creator)
             revert WrongAddress({
                 expected: debates[_arg.debate].arguments[_arg.argument].metadata.creator,
@@ -214,40 +215,45 @@ contract ArborVote is IArbitrable {
         )
         returns (uint240 debateId)
     {
-        DebateLib.Argument memory rootArgument = DebateLib.Argument({
-            metadata: DebateLib.Metadata({
-                creator: msg.sender,
-                finalizationTime: uint32(block.timestamp),
-                parentId: 0,
-                untalliedChilds: 0,
-                isSupporting: true,
-                state: DebateLib.State.Final
-            }),
-            digest: _ipfsHash,
-            market: DebateLib.Market({pro: 0, con: 0, const: 0, vote: 0, fees: 0, childsImpact: 0})
-        });
+        // Create the root Argument
 
-        debateId = debatesCount;
+        DebateLib.Debate storage currentDebate_ = debates[debatesCount]; 
+        DebateLib.Argument storage rootArgument_ = currentDebate_.arguments[0];
+        
+        rootArgument_.metadata.creator = msg.sender; 
+        rootArgument_.metadata.finalizationTime = uint32(block.timestamp);
+        rootArgument_.metadata.isSupporting = true;
+        rootArgument_.metadata.state = DebateLib.State.Final;
+
+        rootArgument_.digest = _ipfsHash;
+
+        // increment counter
+        debateId = debatesCount; // TODO use OZ counter
+        debatesCount++;
 
         _initializePhases(debateId, _timeUnit);
-        _initializeDebate(rootArgument);
+
+        // increment counters
+        currentDebate_.argumentsCount++;
+        
     }
+
 
     function updatePhase(uint240 _debateId) public {
         uint32 currentTime = uint32(block.timestamp);
 
-        PhaseLib.PhaseData storage phase_ = phases[_debateId];
+        PhaseLib.PhaseData storage phaseData_ = phases[_debateId];
 
         if (
-            currentTime > phase_.votingEndTime &&
-            phase_.currentPhase != PhaseLib.Phase.Finished
+            currentTime > phaseData_.votingEndTime &&
+            phaseData_.currentPhase != PhaseLib.Phase.Finished
         ) {
-            phase_.currentPhase = PhaseLib.Phase.Finished;
+            phaseData_.currentPhase = PhaseLib.Phase.Finished;
         } else if (
-            currentTime > phase_.editingEndTime &&
-            phase_.currentPhase != PhaseLib.Phase.Voting
+            currentTime > phaseData_.editingEndTime &&
+            phaseData_.currentPhase != PhaseLib.Phase.Voting
         ) {
-            phase_.currentPhase = PhaseLib.Phase.Voting;
+            phaseData_.currentPhase = PhaseLib.Phase.Voting;
         }
     }
 
@@ -277,17 +283,11 @@ contract ArborVote is IArbitrable {
         user_.tokens = UserLib.INITIAL_TOKENS;
     }
 
-    function _initializeDebate(DebateLib.Argument memory rootArgument) internal {
-        debates[debatesCount].arguments[0] = rootArgument;
-        
-        // increment counters
-        debates[debatesCount].argumentsCount++;
-        debatesCount++;
-    }
 
 
 
-    function finalizeArgument(DebateLib.Identifier memory _arg)
+
+    function finalizeArgument(DebateLib.Identifier calldata _arg)
         public
         onlyArgumentState(_arg, DebateLib.State.Created)
     {
@@ -540,10 +540,11 @@ contract ArborVote is IArbitrable {
     } */
 
     function _initializePhases(uint256 _debateId, uint32 _timeUnit) internal {
-        phases[_debateId].currentPhase = PhaseLib.Phase.Editing;
-        phases[_debateId].timeUnit = _timeUnit;
-        phases[_debateId].editingEndTime = uint32(block.timestamp + 7 * _timeUnit);
-        phases[_debateId].votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
+        PhaseLib.PhaseData storage phaseData_ = phases[_debateId];
+        phaseData_.currentPhase = PhaseLib.Phase.Editing;
+        phaseData_.timeUnit = _timeUnit;
+        phaseData_.editingEndTime = uint32(block.timestamp + 7 * _timeUnit);
+        phaseData_.votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
     }
 
     function _executeProInvestment(
