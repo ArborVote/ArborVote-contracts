@@ -11,8 +11,6 @@ library DebateLib {
     // https://docs.ipfs.io/concepts/content-addressing/
     // https://richardschneider.github.io/net-ipfs-core/articles/multihash.html
 
-    //uint8 constant IPFS_HASH_FUNCTION = 0x12; // sha2-256 - 256 bits (aka sha256),
-    //uint8 constant IPFS_HASH_SIZE = 0x20; // 32 bytes
     uint16 internal constant MAX_ARGUMENTS = type(uint16).max;
 
     // TODO make parameters
@@ -29,8 +27,8 @@ library DebateLib {
         Invalid
     }
 
-    struct Vault {
-        uint32 pro; // 3 bytes
+    struct Market {
+        uint32 pro;
         uint32 con;
         uint32 const;
         uint32 vote;
@@ -55,7 +53,7 @@ library DebateLib {
     struct Argument {
         Metadata metadata; // 32 bytes
         bytes32 digest; // 32 bytes
-        Vault market; // 32 Bytes
+        Market market; // 32 Bytes
     } // 3x 32 bytes
 
     /*     struct Multihash {
@@ -238,7 +236,7 @@ contract ArborVote is IArbitrable {
                 state: DebateLib.State.Final
             }),
             digest: _ipfsHash,
-            market: DebateLib.Vault({pro: 0, con: 0, const: 0, vote: 0, fees: 0, childsImpact: 0})
+            market: DebateLib.Market({pro: 0, con: 0, const: 0, vote: 0, fees: 0, childsImpact: 0})
         });
 
         debateId = debatesCount;
@@ -339,7 +337,7 @@ contract ArborVote is IArbitrable {
         require(users[_parent.debate][msg.sender].tokens >= DebateLib.DEBATE_DEPOSIT);
 
         // initialize market
-        DebateLib.Vault memory market;
+        DebateLib.Market memory market;
         {
             // Create a child node and add it to the mapping
             users[_parent.debate][msg.sender].tokens -= DebateLib.DEBATE_DEPOSIT;
@@ -347,7 +345,7 @@ contract ArborVote is IArbitrable {
                 100 - _initialApproval,
                 _initialApproval
             );
-            market = DebateLib.Vault({
+            market = DebateLib.Market({
                 pro: pro,
                 con: con,
                 const: pro * con,
@@ -574,6 +572,7 @@ contract ArborVote is IArbitrable {
     ) internal {
         uint32 votes = data.voteTokensInvested - data.fee;
         totalVotes += votes;
+        
         debates[_arg.debate].arguments[_arg.argument].market.vote += votes;
         debates[_arg.debate].arguments[_arg.argument].market.fees += data.fee;
         debates[_arg.debate].arguments[_arg.argument].market.con += data.conMint;
