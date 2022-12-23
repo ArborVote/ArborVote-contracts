@@ -100,7 +100,8 @@ contract ArborVote is IArbitrable {
     uint32 internal constant FEE_PERCENTAGE = 5;
     uint32 internal constant INITIAL_TOKENS = 100;
 
-    int64 internal constant MIXING = 0x800000; // type(int64).max / 2 // TODO why negative?
+    int64 internal constant MIX_VAL = type(int64).max / 2; // TODO why negative?
+    int64 internal constant MIX_MAX = type(int64).max;
 
     IProofOfHumanity private poh; // PoH mainnet: 0x1dAD862095d40d43c2109370121cf087632874dB
 
@@ -669,8 +670,8 @@ contract ArborVote is IArbitrable {
         own = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
 
         own =
-            own.multipyByFraction(type(int64).max - int64(MIXING), type(int64).max) +
-            (argument_.market.childsImpact).multipyByFraction(int64(MIXING), type(int64).max);
+            own.multipyByFraction(MIX_MAX - MIX_VAL, MIX_MAX) +
+            (argument_.market.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
 
         if (argument_.metadata.isSupporting) {
             own = -own;
