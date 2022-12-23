@@ -133,20 +133,9 @@ contract ArborVote is IArbitrable {
         _;
     }
 
-    function _onlyPhase(uint256 _debateId, Phase _phase) internal view {
-        if (phases[_debateId].currentPhase != _phase)
-            revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
-    }
-
     modifier excludePhase(uint256 _debateId, Phase _phase) {
         _excludePhase(_debateId, _phase);
         _;
-    }
-
-    function _excludePhase(uint256 _debateId, Phase _phase) internal view {
-        if (phases[_debateId].currentPhase == _phase) {
-            revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
-        }
     }
 
     modifier onlyArgumentState(
@@ -158,35 +147,14 @@ contract ArborVote is IArbitrable {
         _;
     }
 
-    function _onlyArgumentState(uint240 _debateId, uint16 _argumentId, State _state) internal view {
-        State state = debates[_debateId].arguments[_argumentId].metadata.state;
-        if (state != _state) {
-            revert WrongState({expected: _state, actual: state});
-        }
-    }
-
     modifier onlyCreator(uint240 _debateId, uint16 _argumentId) {
         _onlyCreator(_debateId, _argumentId);
         _;
     }
 
-    function _onlyCreator(uint240 _debateId, uint16 _argumentId) internal view {
-        address creator = debates[_debateId].arguments[_argumentId].metadata.creator;
-        if (msg.sender != creator) {
-            revert WrongAddress({expected: creator, actual: msg.sender});
-        }
-    }
-
     modifier onlyRole(uint256 _debateId, Role _role) {
         _onlyRole(_debateId, _role);
         _;
-    }
-
-    function _onlyRole(uint256 _debateId, Role _role) internal view {
-        Role role = users[_debateId][msg.sender].role;
-        if (role != _role) {
-            revert WrongRole({expected: _role, actual: role});
-        }
     }
 
     function initialize(IProofOfHumanity _poh) external {
@@ -243,7 +211,11 @@ contract ArborVote is IArbitrable {
         uint240 _debateId
     ) external excludePhase(_debateId, Phase.Finished) onlyRole(_debateId, Role.Unassigned) {
         require(poh.isRegistered(msg.sender)); // not failsafe - takes 3.5 days to switch address
-        _initializeParticipant(_debateId, msg.sender);
+
+        User storage user_ = users[_debateId][msg.sender];
+
+        user_.role = Role.Participant;
+        user_.tokens = INITIAL_TOKENS;
     }
 
     function debateResult(uint240 _debateId) external view returns (bool) {
@@ -251,13 +223,6 @@ contract ArborVote is IArbitrable {
             revert WrongPhase({expected: Phase.Finished, actual: phases[_debateId].currentPhase});
 
         return debates[_debateId].arguments[0].market.childsImpact > 0;
-    }
-
-    function _initializeParticipant(uint240 _debateId, address _user) internal {
-        User storage user_ = users[_debateId][_user];
-
-        user_.role = Role.Participant;
-        user_.tokens = INITIAL_TOKENS;
     }
 
     function finalizeArgument(
@@ -314,37 +279,6 @@ contract ArborVote is IArbitrable {
         debate_.leafArgumentIds.push(newArgumentId);
     }
 
-    function _createArgument(
-        uint240 _debateId,
-        uint16 _parentArgumentId,
-        bytes32 _ipfsHash,
-        bool _isSupporting,
-        uint32 _initialApproval
-    ) internal returns (uint16 newArgumentId) {
-        Debate storage debate_ = debates[_debateId];
-
-        newArgumentId = debate_.argumentsCount; // TODO use counter
-        debate_.argumentsCount++;
-
-        Argument storage argument_ = debate_.arguments[newArgumentId];
-
-        // Create a child node and add it to the mapping
-        (argument_.market.pro, argument_.market.con) = DEBATE_DEPOSIT.split(
-            100 - _initialApproval,
-            _initialApproval
-        );
-        argument_.market.const = argument_.market.pro * argument_.market.con; // TODO local variable?
-        argument_.market.vote = DEBATE_DEPOSIT;
-
-        argument_.metadata.creator = msg.sender;
-        argument_.metadata.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
-        argument_.metadata.parentId = _parentArgumentId;
-        argument_.metadata.isSupporting = _isSupporting;
-        argument_.metadata.state = State.Created;
-
-        argument_.digest = _ipfsHash;
-    }
-
     function moveArgument(
         uint240 _debateId,
         uint16 _argumentId,
@@ -369,21 +303,6 @@ contract ArborVote is IArbitrable {
         debate_.arguments[_newParentArgumentId].metadata.untalliedChilds++;
     }
 
-    function _updateParentAfterChildRemoval(uint240 _debateId, uint16 _parentArgumentId) internal {
-        Debate storage debate_ = debates[_debateId];
-        Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
-
-        require(parentArgument_.metadata.state == State.Final);
-
-        parentArgument_.metadata.untalliedChilds--;
-
-        // Eventually, the parent argument becomes a leaf after the removal
-        if (parentArgument_.metadata.untalliedChilds == 0) {
-            // append
-            debate_.leafArgumentIds.push(_parentArgumentId);
-        }
-    }
-
     function alterArgument(
         uint240 _debateId,
         uint16 _argumentId,
@@ -402,38 +321,7 @@ contract ArborVote is IArbitrable {
         alteredArgument_.metadata.finalizationTime = newFinalizationTime;
         alteredArgument_.digest = _ipfsHash;
 
-        // TODO
-    }
-
-    function _createDispute(
-        uint240 _debateId,
-        uint16 _argumentId
-    ) internal returns (uint256 disputeId) {
-        (address recipient, ERC20 feeToken, uint256 feeAmount) = arbitrator.getDisputeFees();
-
-        feeToken.safeTransferFrom(msg.sender, address(this), feeAmount);
-        feeToken.safeApprove(recipient, feeAmount);
-        disputeId = arbitrator.createDispute(
-            2,
-            abi.encodePacked(address(this), _debateId, _argumentId)
-        ); // TODO 2 rulings?
-        feeToken.safeApprove(recipient, 0); // reset just in case non-compliant tokens (that fail on non-zero to non-zero approvals) are used
-    }
-
-    function _submitEvidence(
-        uint256 _disputeId,
-        uint240 _debateId,
-        uint16 _argumentId,
-        bytes32 _digest,
-        bytes calldata _reason
-    ) internal {
-        arbitrator.submitEvidence(
-            _disputeId,
-            msg.sender,
-            abi.encode(_debateId, _argumentId, _digest)
-        );
-        arbitrator.submitEvidence(_disputeId, msg.sender, _reason);
-        arbitrator.closeEvidencePeriod(_disputeId);
+        // TODO Emit hash as event
     }
 
     function challenge(
@@ -576,6 +464,115 @@ contract ArborVote is IArbitrable {
         }
 
         phases[_debateId].currentPhase = Phase.Finished;
+    }
+
+    function _onlyPhase(uint256 _debateId, Phase _phase) internal view {
+        if (phases[_debateId].currentPhase != _phase)
+            revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
+    }
+
+    function _onlyCreator(uint240 _debateId, uint16 _argumentId) internal view {
+        address creator = debates[_debateId].arguments[_argumentId].metadata.creator;
+        if (msg.sender != creator) {
+            revert WrongAddress({expected: creator, actual: msg.sender});
+        }
+    }
+
+    function _onlyArgumentState(uint240 _debateId, uint16 _argumentId, State _state) internal view {
+        State state = debates[_debateId].arguments[_argumentId].metadata.state;
+        if (state != _state) {
+            revert WrongState({expected: _state, actual: state});
+        }
+    }
+
+    function _onlyRole(uint256 _debateId, Role _role) internal view {
+        Role role = users[_debateId][msg.sender].role;
+        if (role != _role) {
+            revert WrongRole({expected: _role, actual: role});
+        }
+    }
+
+    function _excludePhase(uint256 _debateId, Phase _phase) internal view {
+        if (phases[_debateId].currentPhase == _phase) {
+            revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
+        }
+    }
+
+    function _createArgument(
+        uint240 _debateId,
+        uint16 _parentArgumentId,
+        bytes32 _ipfsHash,
+        bool _isSupporting,
+        uint32 _initialApproval
+    ) internal returns (uint16 newArgumentId) {
+        Debate storage debate_ = debates[_debateId];
+
+        newArgumentId = debate_.argumentsCount; // TODO use counter
+        debate_.argumentsCount++;
+
+        Argument storage argument_ = debate_.arguments[newArgumentId];
+
+        // Create a child node and add it to the mapping
+        (argument_.market.pro, argument_.market.con) = DEBATE_DEPOSIT.split(
+            100 - _initialApproval,
+            _initialApproval
+        );
+        argument_.market.const = argument_.market.pro * argument_.market.con; // TODO local variable?
+        argument_.market.vote = DEBATE_DEPOSIT;
+
+        argument_.metadata.creator = msg.sender;
+        argument_.metadata.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
+        argument_.metadata.parentId = _parentArgumentId;
+        argument_.metadata.isSupporting = _isSupporting;
+        argument_.metadata.state = State.Created;
+
+        argument_.digest = _ipfsHash;
+    }
+
+    function _updateParentAfterChildRemoval(uint240 _debateId, uint16 _parentArgumentId) internal {
+        Debate storage debate_ = debates[_debateId];
+        Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
+
+        require(parentArgument_.metadata.state == State.Final);
+
+        parentArgument_.metadata.untalliedChilds--;
+
+        // Eventually, the parent argument becomes a leaf after the removal
+        if (parentArgument_.metadata.untalliedChilds == 0) {
+            // append
+            debate_.leafArgumentIds.push(_parentArgumentId);
+        }
+    }
+
+    function _createDispute(
+        uint240 _debateId,
+        uint16 _argumentId
+    ) internal returns (uint256 disputeId) {
+        (address recipient, ERC20 feeToken, uint256 feeAmount) = arbitrator.getDisputeFees();
+
+        feeToken.safeTransferFrom(msg.sender, address(this), feeAmount);
+        feeToken.safeApprove(recipient, feeAmount);
+        disputeId = arbitrator.createDispute(
+            2,
+            abi.encodePacked(address(this), _debateId, _argumentId)
+        ); // TODO 2 rulings?
+        feeToken.safeApprove(recipient, 0); // reset just in case non-compliant tokens (that fail on non-zero to non-zero approvals) are used
+    }
+
+    function _submitEvidence(
+        uint256 _disputeId,
+        uint240 _debateId,
+        uint16 _argumentId,
+        bytes32 _digest,
+        bytes calldata _reason
+    ) internal {
+        arbitrator.submitEvidence(
+            _disputeId,
+            msg.sender,
+            abi.encode(_debateId, _argumentId, _digest)
+        );
+        arbitrator.submitEvidence(_disputeId, msg.sender, _reason);
+        arbitrator.closeEvidencePeriod(_disputeId);
     }
 
     function _executeProInvestment(
