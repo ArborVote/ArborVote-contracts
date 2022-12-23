@@ -34,7 +34,7 @@ contract ArborVote is IArbitrable {
     struct Metadata {
         address creator; // 20 bytes
         uint32 finalizationTime; // 4 bytes
-        uint16 parentId; // 2 bytes
+        uint16 parenArgumentId; // 2 bytes
         uint16 untalliedChilds; // 2 bytes
         bool isSupporting; // 1 byte
         State state; // 1 byte
@@ -42,7 +42,7 @@ contract ArborVote is IArbitrable {
 
     struct Argument {
         Metadata metadata; // 32 bytes
-        bytes32 digest; // 32 bytes // TODO emit text only as event
+        bytes32 contentURI; // 32 bytes // TODO emit text only as event
         Market market; // 32 Bytes
     } // 3x 32 bytes
 
@@ -114,7 +114,14 @@ contract ArborVote is IArbitrable {
 
     event Challenged(uint256 disputeId, uint240 debateId, uint16 argumentId, bytes reason);
 
-    event Resolved(uint256 disputeId, uint240 debateId, uint16 argumentId);
+    event DisputeResolved(uint240 debateId, uint16 argumentId, uint256 disputeId);
+
+    event ArgumentUpdated(
+        uint240 debateId,
+        uint16 argumentId,
+        uint16 parentArgumentId,
+        bytes32 contentURI
+    );
 
     event Invested(
         address indexed buyer,
@@ -162,7 +169,7 @@ contract ArborVote is IArbitrable {
     }
 
     function createDebate(
-        bytes32 _ipfsHash,
+        bytes32 _contentURI,
         uint32 _timeUnit
     ) external onlyArgumentState(debatesCount, 0, State.Unitialized) returns (uint240 debateId) {
         // Create the root Argument
@@ -175,7 +182,7 @@ contract ArborVote is IArbitrable {
         rootArgument_.metadata.finalizationTime = uint32(block.timestamp);
         rootArgument_.metadata.isSupporting = true;
         rootArgument_.metadata.state = State.Final;
-        rootArgument_.digest = _ipfsHash;
+        rootArgument_.contentURI = _contentURI;
 
         debateId = debatesCount; // TODO use OZ counter
 
@@ -242,7 +249,7 @@ contract ArborVote is IArbitrable {
     function addArgument(
         uint240 _debateId,
         uint16 _parentArgumentId,
-        bytes32 _ipfsHash,
+        bytes32 _contentURI,
         bool _isSupporting,
         uint32 _initialApproval
     )
@@ -264,7 +271,7 @@ contract ArborVote is IArbitrable {
         uint16 newArgumentId = _createArgument(
             _debateId,
             _parentArgumentId,
-            _ipfsHash,
+            _contentURI,
             _isSupporting,
             _initialApproval
         );
@@ -277,6 +284,13 @@ contract ArborVote is IArbitrable {
             debate_.leafArgumentIds.removeById(_parentArgumentId);
         }
         debate_.leafArgumentIds.push(newArgumentId);
+
+        emit ArgumentUpdated({
+            debateId: _debateId,
+            argumentId: newArgumentId,
+            parentArgumentId: _parentArgumentId,
+            contentURI: _contentURI
+        });
     }
 
     function moveArgument(
@@ -293,20 +307,27 @@ contract ArborVote is IArbitrable {
         Argument storage movedArgument_ = debate_.arguments[_argumentId];
 
         // change old parent's argument state
-        uint16 oldParentArgumentId = movedArgument_.metadata.parentId;
+        uint16 oldParentArgumentId = movedArgument_.metadata.parenArgumentId;
         _updateParentAfterChildRemoval(_debateId, oldParentArgumentId);
 
         // change argument state
-        movedArgument_.metadata.parentId = _newParentArgumentId;
+        movedArgument_.metadata.parenArgumentId = _newParentArgumentId;
 
         // change new parent argument state
         debate_.arguments[_newParentArgumentId].metadata.untalliedChilds++;
+
+        emit ArgumentUpdated({
+            debateId: _debateId,
+            argumentId: _argumentId,
+            parentArgumentId: _newParentArgumentId,
+            contentURI: movedArgument_.contentURI
+        });
     }
 
     function alterArgument(
         uint240 _debateId,
         uint16 _argumentId,
-        bytes32 _ipfsHash
+        bytes32 _contentURI
     )
         external
         onlyPhase(_debateId, Phase.Editing)
@@ -319,9 +340,14 @@ contract ArborVote is IArbitrable {
 
         Argument storage alteredArgument_ = debates[_debateId].arguments[_argumentId];
         alteredArgument_.metadata.finalizationTime = newFinalizationTime;
-        alteredArgument_.digest = _ipfsHash;
+        alteredArgument_.contentURI = _contentURI;
 
-        // TODO Emit hash as event
+        emit ArgumentUpdated({
+            debateId: _debateId,
+            argumentId: _argumentId,
+            parentArgumentId: alteredArgument_.metadata.parenArgumentId,
+            contentURI: _contentURI
+        });
     }
 
     function challenge(
@@ -342,7 +368,7 @@ contract ArborVote is IArbitrable {
             disputeId,
             _debateId,
             _argumentId,
-            debates[_debateId].arguments[_argumentId].digest,
+            debates[_debateId].arguments[_argumentId].contentURI,
             _reason
         );
 
@@ -378,7 +404,7 @@ contract ArborVote is IArbitrable {
         }
 
         emit Ruled({arbitrator: arbitrator, disputeId: disputeId, ruling: ruling});
-        emit Resolved({disputeId: disputeId, debateId: _debateId, argumentId: _argumentId});
+        emit DisputeResolved({debateId: _debateId, argumentId: _argumentId, disputeId: disputeId});
     }
 
     function calculateMint(
@@ -501,7 +527,7 @@ contract ArborVote is IArbitrable {
     function _createArgument(
         uint240 _debateId,
         uint16 _parentArgumentId,
-        bytes32 _ipfsHash,
+        bytes32 _contentURI,
         bool _isSupporting,
         uint32 _initialApproval
     ) internal returns (uint16 newArgumentId) {
@@ -522,11 +548,11 @@ contract ArborVote is IArbitrable {
 
         argument_.metadata.creator = msg.sender;
         argument_.metadata.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
-        argument_.metadata.parentId = _parentArgumentId;
+        argument_.metadata.parenArgumentId = _parentArgumentId;
         argument_.metadata.isSupporting = _isSupporting;
         argument_.metadata.state = State.Created;
 
-        argument_.digest = _ipfsHash;
+        argument_.contentURI = _contentURI;
     }
 
     function _updateParentAfterChildRemoval(uint240 _debateId, uint16 _parentArgumentId) internal {
@@ -563,13 +589,13 @@ contract ArborVote is IArbitrable {
         uint256 _disputeId,
         uint240 _debateId,
         uint16 _argumentId,
-        bytes32 _digest,
+        bytes32 _contentURI,
         bytes calldata _reason
     ) internal {
         arbitrator.submitEvidence(
             _disputeId,
             msg.sender,
-            abi.encode(_debateId, _argumentId, _digest)
+            abi.encode(_debateId, _argumentId, _contentURI)
         );
         arbitrator.submitEvidence(_disputeId, msg.sender, _reason);
         arbitrator.closeEvidencePeriod(_disputeId);
@@ -652,7 +678,7 @@ contract ArborVote is IArbitrable {
 
     function _tallyNode(uint240 _debateId, uint16 _argumentId) internal {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
-        uint16 parentArgumentId = argument_.metadata.parentId;
+        uint16 parentArgumentId = argument_.metadata.parenArgumentId;
         Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
 
         require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
