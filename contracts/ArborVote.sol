@@ -345,7 +345,6 @@ contract ArborVote is IArbitrable {
         argument_.metadata.creator = msg.sender;
         argument_.metadata.finalizationTime = finalizationTime;
         argument_.metadata.parentId = _parent.argument;
-
         argument_.metadata.untalliedChilds = 0;
         argument_.metadata.isSupporting = _isSupporting;
         argument_.metadata.state = DebateLib.State.Created;
@@ -608,36 +607,42 @@ contract ArborVote is IArbitrable {
     function _calculateOwnImpact(
         DebateLib.Identifier memory _arg
     ) internal view returns (int64 own) {
-        uint32 pro = debates[_arg.debate].arguments[_arg.argument].market.pro;
-        uint32 con = debates[_arg.debate].arguments[_arg.argument].market.con;
+        DebateLib.Argument storage argument_ = debates[_arg.debate].arguments[_arg.argument];
+
+        uint32 pro = argument_.market.pro;
+        uint32 con = argument_.market.con;
 
         // calculate own impact
         own = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
 
         own =
             own.multipyByFraction(type(int64).max - int64(DebateLib.MIXING), type(int64).max) +
-            (debates[_arg.debate].arguments[_arg.argument].market.childsImpact).multipyByFraction(
+            (argument_.market.childsImpact).multipyByFraction(
                 int64(DebateLib.MIXING),
                 type(int64).max
             );
 
-        if (debates[_arg.debate].arguments[_arg.argument].metadata.isSupporting) own = -own;
+        if (argument_.metadata.isSupporting) {
+            own = -own;
+        }
     }
 
     function _tallyNode(DebateLib.Identifier memory _arg) internal {
-        require(debates[_arg.debate].arguments[_arg.argument].metadata.untalliedChilds == 0); // All childs must be tallied first
+        DebateLib.Argument storage argument_ = debates[_arg.debate].arguments[_arg.argument];
+        uint16 parentId = argument_.metadata.parentId;
+        DebateLib.Argument storage parentArgument_ = debates[_arg.debate].arguments[parentId];
+
+        require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
 
         int64 own = _calculateOwnImpact(_arg);
 
-        // Change parent state
-        uint16 parentId = debates[_arg.debate].arguments[_arg.argument].metadata.parentId;
         // TODO weight calculation
 
-        debates[_arg.debate].arguments[parentId].market.childsImpact += own;
-        debates[_arg.debate].arguments[parentId].metadata.untalliedChilds--;
+        parentArgument_.market.childsImpact += own;
+        parentArgument_.metadata.untalliedChilds--;
 
         // if all childs of the parent are tallied, tally parent
-        if (debates[_arg.debate].arguments[_arg.argument].metadata.untalliedChilds == 0) {
+        if (argument_.metadata.untalliedChilds == 0) {
             _tallyNode(DebateLib.Identifier({debate: _arg.debate, argument: parentId}));
         }
     }
