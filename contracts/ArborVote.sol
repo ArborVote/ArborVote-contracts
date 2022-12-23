@@ -461,7 +461,12 @@ contract ArborVote is IArbitrable {
         // state changes
         _addDispute(_debateId, _argumentId, disputeId);
 
-        emit Challenged(disputeId, _debateId, _argumentId, _reason);
+        emit Challenged({
+            disputeId: disputeId,
+            debateId: _debateId,
+            argumentId: _argumentId,
+            reason: _reason
+        });
     }
 
     function resolve(
