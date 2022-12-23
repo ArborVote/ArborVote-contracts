@@ -4,11 +4,7 @@ pragma solidity ^0.8.0;
 library UtilsLib {
     // Calculate v * a/b rounding down.
     // from https://ethereum.stackexchange.com/questions/55701/how-to-do-solidity-percentage-calculation
-    function multipyByFraction(
-        uint32 v,
-        uint32 a,
-        uint32 b
-    ) public pure returns (uint32) {
+    function multipyByFraction(uint32 v, uint32 a, uint32 b) public pure returns (uint32) {
         uint32 vdiv = v / b;
         uint32 vmod = v % b;
         uint32 adiv = a / b;
@@ -17,11 +13,7 @@ library UtilsLib {
         return vdiv * adiv * b + vdiv * amod + vmod * adiv + (vmod * amod) / b;
     }
 
-    function multipyByFraction(
-        int64 v,
-        int64 a,
-        int64 b
-    ) public pure returns (int64) {
+    function multipyByFraction(int64 v, int64 a, int64 b) public pure returns (int64) {
         int64 vdiv = v / b;
         int64 vmod = v % b;
         int64 adiv = a / b;
@@ -48,11 +40,7 @@ library UtilsLib {
         else return mid;
     }
 
-    function split(
-        uint32 v,
-        uint32 a,
-        uint32 b
-    ) public pure returns (uint32 v1, uint32 v2) {
+    function split(uint32 v, uint32 a, uint32 b) public pure returns (uint32 v1, uint32 v2) {
         v2 = multipyByFraction(v, b, a + b);
         v1 = v - v2;
     }

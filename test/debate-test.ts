@@ -6,7 +6,7 @@ function toBytes(string: string) {
   return ethers.utils.formatBytes32String(string);
 }
 
-describe('DebateFactory', function() {
+describe('DebateFactory', function () {
   let debates: Contract;
   let phases: Contract;
   let users: Contract;
@@ -21,41 +21,12 @@ describe('DebateFactory', function() {
   let mockArbitrator: Contract;
   let sender: string;
 
-  beforeEach(async function() {
+  beforeEach(async function () {
     sender = await (await ethers.getSigners())[0].getAddress();
 
     const UtilsLib = await ethers.getContractFactory('UtilsLib');
     utilsLib = await UtilsLib.deploy();
     await utilsLib.deployed();
-
-    const Debates = await ethers.getContractFactory('Debates', {
-      libraries: {UtilsLib: utilsLib.address}
-    });
-    const Phases = await ethers.getContractFactory('Phases');
-    const Users = await ethers.getContractFactory('Users');
-    const Editing = await ethers.getContractFactory('Editing', {
-      libraries: {UtilsLib: utilsLib.address}
-    });
-    const Voting = await ethers.getContractFactory('Voting', {
-      libraries: {UtilsLib: utilsLib.address}
-    });
-    const Tallying = await ethers.getContractFactory('Tallying', {
-      libraries: {UtilsLib: utilsLib.address}
-    });
-
-    debates = await Debates.deploy();
-    phases = await Phases.deploy();
-    users = await Users.deploy();
-    editing = await Editing.deploy();
-    voting = await Voting.deploy();
-    tallying = await Tallying.deploy();
-
-    await debates.deployed();
-    await phases.deployed();
-    await users.deployed();
-    await editing.deployed();
-    await voting.deployed();
-    await tallying.deployed();
 
     const MockProofOfHumanity = await ethers.getContractFactory(
       'MockProofOfHumanity'
@@ -67,7 +38,11 @@ describe('DebateFactory', function() {
     mockArbitrator = await MockArbitrator.deploy();
     await mockArbitrator.deployed();
 
-    const ArborVote = await ethers.getContractFactory('ArborVote');
+    const ArborVote = await ethers.getContractFactory('ArborVote', {
+      libraries: {
+        UtilsLib: utilsLib.address,
+      },
+    });
     arborVote = await ArborVote.deploy();
     await arborVote.deployed();
 
@@ -77,27 +52,19 @@ describe('DebateFactory', function() {
     await mockERC20.approve(arborVote.address, 1000);
   });
 
-  async function arborVoteInitHelper() {
-    await arborVote.initialize(
-      phases.address,
-      debates.address,
-      users.address,
-      editing.address,
-      voting.address,
-      tallying.address,
-      mockProofOfHumanity.address
-    );
-  }
-
-  describe('initialize', async function() {
-    it('initializes the contract', async function() {
-      expect(await arborVoteInitHelper());
+  describe('initialize', async function () {
+    it('initializes the contract', async function () {
+      await expect(arborVote.initialize(mockProofOfHumanity.address)).to.not.be
+        .reverted;
     });
   });
 
-  describe('createDebate', async function() {
-    it('creates a debate and allows to join', async function() {
-      await arborVoteInitHelper();
+  describe('createDebate', async function () {
+    beforeEach(async function () {
+      await arborVote.initialize(mockProofOfHumanity.address);
+    });
+
+    it('creates a debate and allows to join', async function () {
       const thesis = toBytes('We should do XYZ');
 
       const timeUnit = 1 * 60; // 1 minute
@@ -110,7 +77,13 @@ describe('DebateFactory', function() {
       tx = await arborVote.join(id);
       tx.wait();
 
-      editing.addArgument([0, 0], toBytes('This is a good idea.'), true, 51);
+      await arborVote.addArgument(
+        0,
+        0,
+        toBytes('This is a good idea.'),
+        true,
+        51
+      );
 
       // suppose the current block has a timestamp of 01:00 PM
       await ethers.provider.send('evm_increaseTime', [10 * timeUnit]);
