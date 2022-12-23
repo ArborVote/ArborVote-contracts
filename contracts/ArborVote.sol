@@ -370,16 +370,13 @@ contract ArborVote is IArbitrable {
         onlyCreator(_arg)
         onlyArgumentState(_arg, DebateLib.State.Created)
     {
-        // change old parent state (which eventually becomes a leaf because of the removal)
-        {
-            DebateLib.Identifier memory oldParent = DebateLib.Identifier({
-                debate: _arg.debate,
-                argument: debates[_arg.debate].arguments[_arg.argument].metadata.parentId
-            });
+        DebateLib.Debate storage debate_ = debates[_arg.debate];
+        DebateLib.Argument storage movedArgument_ = debate_.arguments[_arg.argument];
 
-            DebateLib.Argument storage oldParentArgument_ = debates[oldParent.debate].arguments[
-                oldParent.argument
-            ];
+        // change old parent's argument state (which eventually becomes a leaf because of the removal)
+        {
+            uint16 oldParentArgumentId = movedArgument_.metadata.parentId;
+            DebateLib.Argument storage oldParentArgument_ = debate_.arguments[oldParentArgumentId];
 
             require(oldParentArgument_.metadata.state == DebateLib.State.Final);
 
@@ -387,15 +384,15 @@ contract ArborVote is IArbitrable {
 
             if (oldParentArgument_.metadata.untalliedChilds == 0) {
                 // append
-                debates[_arg.debate].leafArgumentIds.push(oldParent.argument);
+                debate_.leafArgumentIds.push(oldParentArgumentId);
             }
         }
 
         // change argument state
-        debates[_arg.debate].arguments[_arg.argument].metadata.parentId = _newParentArgumentId;
+        movedArgument_.metadata.parentId = _newParentArgumentId;
 
-        // change new parent state
-        debates[_arg.debate].arguments[_newParentArgumentId].metadata.untalliedChilds++;
+        // change new parent argument state
+        debate_.arguments[_newParentArgumentId].metadata.untalliedChilds++;
     }
 
     function alterArgument(
