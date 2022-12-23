@@ -385,25 +385,28 @@ contract ArborVote is IArbitrable {
         DebateLib.Argument storage movedArgument_ = debate_.arguments[_argumentId];
 
         // change old parent's argument state (which eventually becomes a leaf because of the removal)
-        {
-            uint16 oldParentArgumentId = movedArgument_.metadata.parentId;
-            DebateLib.Argument storage oldParentArgument_ = debate_.arguments[oldParentArgumentId];
-
-            require(oldParentArgument_.metadata.state == DebateLib.State.Final);
-
-            oldParentArgument_.metadata.untalliedChilds--;
-
-            if (oldParentArgument_.metadata.untalliedChilds == 0) {
-                // append
-                debate_.leafArgumentIds.push(oldParentArgumentId);
-            }
-        }
+        uint16 oldParentArgumentId = movedArgument_.metadata.parentId;
+        _updateParentAfterChildRemoval(_debateId, oldParentArgumentId);
 
         // change argument state
         movedArgument_.metadata.parentId = _newParentArgumentId;
 
         // change new parent argument state
         debate_.arguments[_newParentArgumentId].metadata.untalliedChilds++;
+    }
+
+    function _updateParentAfterChildRemoval(uint240 _debateId, uint16 _parentArgumentId) internal {
+        DebateLib.Debate storage debate_ = debates[_debateId];
+        DebateLib.Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
+
+        require(parentArgument_.metadata.state == DebateLib.State.Final);
+
+        parentArgument_.metadata.untalliedChilds--;
+
+        if (parentArgument_.metadata.untalliedChilds == 0) {
+            // append
+            debate_.leafArgumentIds.push(_parentArgumentId);
+        }
     }
 
     function alterArgument(
@@ -420,8 +423,11 @@ contract ArborVote is IArbitrable {
 
         require(newFinalizationTime <= phases[_debateId].editingEndTime);
 
-        debates[_debateId].arguments[_argumentId].metadata.finalizationTime = newFinalizationTime;
-        debates[_debateId].arguments[_argumentId].digest = _ipfsHash;
+        DebateLib.Argument storage alteredArgument_ = debates[_debateId].arguments[_argumentId];
+        alteredArgument_.metadata.finalizationTime = newFinalizationTime;
+        alteredArgument_.digest = _ipfsHash;
+
+        // TODO emit event
     }
 
     function _createDispute(
