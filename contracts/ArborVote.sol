@@ -377,17 +377,15 @@ contract ArborVote is IArbitrable {
                 argument: debates[_arg.debate].arguments[_arg.argument].metadata.parentId
             });
 
-            require(
-                debates[oldParent.debate].arguments[oldParent.argument].metadata.state ==
-                    DebateLib.State.Final
-            );
+            DebateLib.Argument storage oldParentArgument_ = debates[oldParent.debate].arguments[
+                oldParent.argument
+            ];
 
-            debates[oldParent.debate].arguments[oldParent.argument].metadata.untalliedChilds--;
+            require(oldParentArgument_.metadata.state == DebateLib.State.Final);
 
-            if (
-                debates[oldParent.debate].arguments[oldParent.argument].metadata.untalliedChilds ==
-                0
-            ) {
+            oldParentArgument_.metadata.untalliedChilds--;
+
+            if (oldParentArgument_.metadata.untalliedChilds == 0) {
                 // append
                 debates[_arg.debate].leafArgumentIds.push(oldParent.argument);
             }
@@ -488,10 +486,12 @@ contract ArborVote is IArbitrable {
     ) public view returns (DebateLib.InvestmentData memory data) {
         data.voteTokensInvested = _voteTokenAmount;
 
+        DebateLib.Argument storage argument_ = debates[_arg.debate].arguments[_arg.argument];
+
         data.fee = _voteTokenAmount.multipyByFraction(DebateLib.FEE_PERCENTAGE, 100);
         (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(
-            debates[_arg.debate].arguments[_arg.argument].market.pro,
-            debates[_arg.debate].arguments[_arg.argument].market.con
+            argument_.market.pro,
+            argument_.market.con
         );
 
         data.proMint = proMint;
