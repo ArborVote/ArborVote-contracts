@@ -358,7 +358,7 @@ contract ArborVote is IArbitrable {
         Debate storage debate_ = debates[_debateId];
         Argument storage movedArgument_ = debate_.arguments[_argumentId];
 
-        // change old parent's argument state (which eventually becomes a leaf because of the removal)
+        // change old parent's argument state
         uint16 oldParentArgumentId = movedArgument_.metadata.parentId;
         _updateParentAfterChildRemoval(_debateId, oldParentArgumentId);
 
@@ -377,6 +377,7 @@ contract ArborVote is IArbitrable {
 
         parentArgument_.metadata.untalliedChilds--;
 
+        // Eventually, the parent argument becomes a leaf after the removal
         if (parentArgument_.metadata.untalliedChilds == 0) {
             // append
             debate_.leafArgumentIds.push(_parentArgumentId);
