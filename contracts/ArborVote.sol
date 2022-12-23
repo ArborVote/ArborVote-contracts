@@ -353,24 +353,17 @@ contract ArborVote is IArbitrable {
         debate_.argumentsCount++;
 
         DebateLib.Argument storage argument_ = debate_.arguments[newArgumentId];
-        {
-            // Create a child node and add it to the mapping
-            (argument_.market.pro, argument_.market.con) = DebateLib.DEBATE_DEPOSIT.split(
-                100 - _initialApproval,
-                _initialApproval
-            );
 
-            argument_.market.const = argument_.market.pro * argument_.market.con; // TODO local variable?
-            argument_.market.vote = DebateLib.DEBATE_DEPOSIT;
-        }
-
-        uint32 finalizationTime;
-        {
-            finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
-        }
+        // Create a child node and add it to the mapping
+        (argument_.market.pro, argument_.market.con) = DebateLib.DEBATE_DEPOSIT.split(
+            100 - _initialApproval,
+            _initialApproval
+        );
+        argument_.market.const = argument_.market.pro * argument_.market.con; // TODO local variable?
+        argument_.market.vote = DebateLib.DEBATE_DEPOSIT;
 
         argument_.metadata.creator = msg.sender;
-        argument_.metadata.finalizationTime = finalizationTime;
+        argument_.metadata.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
         argument_.metadata.parentId = _parentArgumentId;
         argument_.metadata.isSupporting = _isSupporting;
         argument_.metadata.state = DebateLib.State.Created;
