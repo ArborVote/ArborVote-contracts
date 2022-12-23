@@ -47,8 +47,9 @@ contract ArborVote is IArbitrable {
     } // 3x 32 bytes
 
     struct Debate {
-        uint16 argumentsCount;
         mapping(uint16 => Argument) arguments;
+        uint32 totalVotes;
+        uint16 argumentsCount;
         uint16[] leafArgumentIds;
         uint16[] disputedArgumentIds;
     }
@@ -103,7 +104,6 @@ contract ArborVote is IArbitrable {
 
     IProofOfHumanity private poh; // PoH mainnet: 0x1dAD862095d40d43c2109370121cf087632874dB
 
-    uint32 public totalVotes;
     uint240 public debatesCount;
     mapping(uint240 => Debate) public debates;
     mapping(uint240 => mapping(uint16 => uint256)) public disputes;
@@ -440,9 +440,9 @@ contract ArborVote is IArbitrable {
         user_.tokens -= _amount;
 
         InvestmentData memory data = calculateMint(_debateId, _argumentId, _amount);
-        _executeProInvestment(_debateId, _argumentId, data);
-
         data.conSwap = 0;
+
+        _executeProInvestment(_debateId, _argumentId, data);
 
         user_.shares[_argumentId].pro += _amount;
 
@@ -465,9 +465,9 @@ contract ArborVote is IArbitrable {
         user_.tokens -= _amount;
 
         InvestmentData memory data = calculateMint(_debateId, _argumentId, _amount);
-        _executeConInvestment(_debateId, _argumentId, data);
-
         data.proSwap = 0;
+
+        _executeConInvestment(_debateId, _argumentId, data);
 
         user_.shares[_argumentId].con += _amount;
 
@@ -607,7 +607,8 @@ contract ArborVote is IArbitrable {
         InvestmentData memory data
     ) internal {
         uint32 votes = data.voteTokensInvested - data.fee;
-        totalVotes += votes;
+
+        debates[_debateId].totalVotes += votes;
 
         Market storage market_ = debates[_debateId].arguments[_argumentId].market;
 
@@ -623,7 +624,7 @@ contract ArborVote is IArbitrable {
         InvestmentData memory data
     ) internal {
         uint32 votes = data.voteTokensInvested - data.fee;
-        totalVotes += votes;
+        debates[_debateId].totalVotes += votes;
 
         Market storage market_ = debates[_debateId].arguments[_argumentId].market;
 
