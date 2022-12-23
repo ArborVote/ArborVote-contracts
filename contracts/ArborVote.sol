@@ -28,7 +28,6 @@ contract ArborVote is IArbitrable {
         uint32 const;
         uint32 vote;
         uint32 fees;
-        int64 childsImpact;
     }
 
     struct Metadata {
@@ -36,9 +35,11 @@ contract ArborVote is IArbitrable {
         uint32 finalizationTime; // 4 bytes
         uint16 parenArgumentId; // 2 bytes
         uint16 untalliedChilds; // 2 bytes
+        uint32 childsVote; // 4 bytes
+        int64 childsImpact; // 8 bytes
         bool isSupporting; // 1 byte
         State state; // 1 byte
-    } // 30 bytes
+    }
 
     struct Argument {
         Metadata metadata; // 32 bytes
@@ -118,9 +119,9 @@ contract ArborVote is IArbitrable {
     event DisputeResolved(uint240 debateId, uint16 argumentId, uint256 disputeId);
 
     event ArgumentUpdated(
-        uint240 debateId,
-        uint16 argumentId,
-        uint16 parentArgumentId,
+        uint240 indexed debateId,
+        uint16 indexed argumentId,
+        uint16 indexed parentArgumentId,
         bytes32 contentURI
     );
 
@@ -129,6 +130,12 @@ contract ArborVote is IArbitrable {
         uint240 indexed debateId,
         uint16 indexed argumentId,
         InvestmentData data
+    );
+
+    event ArgumentImpactCalculated(
+        uint240 indexed debateId,
+        uint16 indexed argumentId,
+        int64 impact
     );
 
     error WrongPhase(Phase expected, Phase actual);
@@ -230,7 +237,7 @@ contract ArborVote is IArbitrable {
         if (phases[_debateId].currentPhase != Phase.Finished)
             revert WrongPhase({expected: Phase.Finished, actual: phases[_debateId].currentPhase});
 
-        return debates[_debateId].arguments[0].market.childsImpact > 0;
+        return debates[_debateId].arguments[0].metadata.childsImpact > 0;
     }
 
     function finalizeArgument(
@@ -609,9 +616,12 @@ contract ArborVote is IArbitrable {
     ) internal {
         uint32 votes = data.voteTokensInvested - data.fee;
 
-        debates[_debateId].totalVotes += votes;
+        Debate storage debate_ = debates[_debateId];
+        debate_.totalVotes += votes;
+        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parenArgumentId;
+        debate_.arguments[parentArgumentId].metadata.childsVote += votes;
 
-        Market storage market_ = debates[_debateId].arguments[_argumentId].market;
+        Market storage market_ = debate_.arguments[_argumentId].market;
 
         market_.vote += votes;
         market_.fees += data.fee;
@@ -627,7 +637,12 @@ contract ArborVote is IArbitrable {
         uint32 votes = data.voteTokensInvested - data.fee;
         debates[_debateId].totalVotes += votes;
 
-        Market storage market_ = debates[_debateId].arguments[_argumentId].market;
+        Debate storage debate_ = debates[_debateId];
+        debate_.totalVotes += votes;
+        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parenArgumentId;
+        debate_.arguments[parentArgumentId].metadata.childsVote += votes;
+
+        Market storage market_ = debate_.arguments[_argumentId].market;
 
         market_.vote += votes;
         market_.fees += data.fee;
@@ -657,6 +672,46 @@ contract ArborVote is IArbitrable {
         // TODO is this really always the order? Does this stem from the pair?
     }
 
+    function _tallyNode(uint240 _debateId, uint16 _argumentId) internal {
+        Argument storage argument_ = debates[_debateId].arguments[_argumentId];
+        uint16 parentArgumentId = argument_.metadata.parenArgumentId;
+        Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
+
+        require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
+
+        // Calculate own impact $r_j$
+        int64 ownImpact = _calculateOwnImpact(_debateId, _argumentId);
+
+        // Apply pre-factor $\sigma_j$
+        if (argument_.metadata.isSupporting) {
+            ownImpact = -ownImpact;
+        }
+
+        // Apply weight $w_j$
+        uint32 ownVotes = argument_.market.vote;
+        uint32 ownAndSibilingVotes = parentArgument_.metadata.childsVote; // This works, because the parent contains the votes of all children (the siblings).
+
+        ownImpact = ownImpact.multipyByFraction(
+            int64(uint64(ownVotes)),
+            int64(uint64(ownAndSibilingVotes))
+        );
+
+        // Update the parent argument impact
+        parentArgument_.metadata.childsImpact += ownImpact;
+        parentArgument_.metadata.untalliedChilds--;
+
+        // if all childs of the parent are tallied, tally parent
+        if (parentArgument_.metadata.untalliedChilds == 0) {
+            _tallyNode(_debateId, parentArgumentId);
+        }
+
+        emit ArgumentImpactCalculated({
+            debateId: _debateId,
+            argumentId: _argumentId,
+            impact: ownImpact
+        });
+    }
+
     function _calculateOwnImpact(
         uint240 _debateId,
         uint16 _argumentId
@@ -671,30 +726,6 @@ contract ArborVote is IArbitrable {
 
         own =
             own.multipyByFraction(MIX_MAX - MIX_VAL, MIX_MAX) +
-            (argument_.market.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
-
-        if (argument_.metadata.isSupporting) {
-            own = -own;
-        }
-    }
-
-    function _tallyNode(uint240 _debateId, uint16 _argumentId) internal {
-        Argument storage argument_ = debates[_debateId].arguments[_argumentId];
-        uint16 parentArgumentId = argument_.metadata.parenArgumentId;
-        Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
-
-        require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
-
-        int64 own = _calculateOwnImpact(_debateId, _argumentId);
-
-        // TODO weight calculation
-
-        parentArgument_.market.childsImpact += own;
-        parentArgument_.metadata.untalliedChilds--;
-
-        // if all childs of the parent are tallied, tally parent
-        if (argument_.metadata.untalliedChilds == 0) {
-            _tallyNode(_debateId, parentArgumentId);
-        }
+            (argument_.metadata.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
     }
 }
