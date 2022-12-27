@@ -1,18 +1,38 @@
 import {ethers} from 'hardhat';
-import {Contract, BigNumber} from 'ethers';
+import {Contract} from 'ethers';
 import {expect} from 'chai';
 
-function toBytes(string: string) {
-  return ethers.utils.formatBytes32String(string);
+import {
+  customError,
+  toBytes,
+  convertToStruct,
+  getTime,
+  advanceTime,
+  advanceTimeTo,
+} from './test-helpers';
+
+enum Phase {
+  Unitialized,
+  Editing,
+  Voting,
+  Finished,
 }
 
-describe('DebateFactory', function () {
-  let debates: Contract;
-  let phases: Contract;
-  let users: Contract;
-  let editing: Contract;
-  let voting: Contract;
-  let tallying: Contract;
+enum Role {
+  Unassigned,
+  Participant,
+  Juror,
+}
+
+enum State {
+  Unitialized,
+  Created,
+  Final,
+  Disputed,
+  Invalid,
+}
+
+describe('ArborVote', function () {
   let utilsLib: Contract;
   let arborVote: Contract;
 
@@ -20,6 +40,10 @@ describe('DebateFactory', function () {
   let mockERC20: Contract;
   let mockArbitrator: Contract;
   let sender: string;
+  let debateId: number;
+
+  const timeUnit: number = 1 * 60; // 1 minute
+  const thesis = toBytes('We should do XYZ');
 
   beforeEach(async function () {
     sender = await (await ethers.getSigners())[0].getAddress();
@@ -59,23 +83,76 @@ describe('DebateFactory', function () {
     });
   });
 
+  describe('updatePhase', async function () {
+    beforeEach(async function () {
+      await arborVote.initialize(mockProofOfHumanity.address);
+      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
+    });
+
+    it('reverts for an uninitialized debate', async function () {
+      const uninitializedDebateId = 123;
+      expect(
+        (await arborVote.phases(uninitializedDebateId)).currentPhase
+      ).to.eq(Phase.Unitialized);
+
+      await expect(
+        arborVote.updatePhase(uninitializedDebateId)
+      ).to.be.revertedWith(
+        customError('DebateUninitialized', uninitializedDebateId)
+      );
+    });
+
+    it('advances the phases after the time has passed', async function () {
+      let phaseData = convertToStruct(await arborVote.phases(debateId));
+      expect(phaseData.currentPhase).to.eq(Phase.Editing);
+
+      await advanceTimeTo(phaseData.editingEndTime);
+      await arborVote.updatePhase(debateId);
+      expect((await arborVote.phases(debateId)).currentPhase).to.eq(
+        Phase.Voting
+      );
+
+      await advanceTimeTo(phaseData.votingEndTime);
+      await arborVote.updatePhase(debateId);
+      expect((await arborVote.phases(debateId)).currentPhase).to.eq(
+        Phase.Finished
+      );
+    });
+  });
+
   describe('createDebate', async function () {
     beforeEach(async function () {
       await arborVote.initialize(mockProofOfHumanity.address);
     });
 
+    it('is uninitialized before a debate is created', async function () {
+      debateId = 0;
+      let phaseData = convertToStruct(await arborVote.phases(debateId));
+      expect(phaseData.currentPhase).to.eq(Phase.Unitialized);
+      expect(phaseData.editingEndTime).to.eq(0);
+      expect(phaseData.votingEndTime).to.eq(0);
+      expect(phaseData.timeUnit).to.eq(0);
+    });
+
+    it('initializes the phase data', async function () {
+      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
+      expect(debateId).to.equal(0);
+
+      let currentTime = await getTime();
+      let phaseData = convertToStruct(await arborVote.phases(debateId));
+
+      expect(phaseData.currentPhase).to.eq(Phase.Editing);
+      expect(phaseData.timeUnit).to.eq(timeUnit);
+      expect(phaseData.editingEndTime).to.eq(currentTime + 7 * timeUnit);
+      expect(phaseData.votingEndTime).to.eq(currentTime + 10 * timeUnit);
+    });
+
     it('creates a debate and allows to join', async function () {
-      const thesis = toBytes('We should do XYZ');
+      debateId = await arborVote.callStatic.createDebate(thesis, timeUnit);
+      expect(debateId).to.equal(0);
 
-      const timeUnit = 1 * 60; // 1 minute
-      const id = await arborVote.callStatic.createDebate(thesis, timeUnit);
-      expect(id).to.equal(0);
-
-      let tx = await arborVote.createDebate(thesis, timeUnit);
-      let rc = await tx.wait();
-
-      tx = await arborVote.join(id);
-      tx.wait();
+      await arborVote.createDebate(thesis, timeUnit);
+      await arborVote.join(debateId);
 
       await arborVote.addArgument(
         0,
@@ -84,16 +161,6 @@ describe('DebateFactory', function () {
         true,
         51
       );
-
-      // suppose the current block has a timestamp of 01:00 PM
-      await ethers.provider.send('evm_increaseTime', [10 * timeUnit]);
-      await ethers.provider.send('evm_mine', []); // this one will have 02:00 PM as its timestamp
-
-      tx = await arborVote.updatePhase(id);
-      rc = await tx.wait();
-      await ethers.provider.send('evm_mine', []);
-
-      console.log('here', await arborVote.debateResult(id));
     });
   });
 });

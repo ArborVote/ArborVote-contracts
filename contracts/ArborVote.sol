@@ -62,6 +62,9 @@ contract ArborVote is IArbitrable {
         int64 impact
     );
 
+    /// @notice Thrown if a debate is uninitialized.
+    error DebateUninitialized(uint256 debateId);
+
     error WrongPhase(Phase expected, Phase actual);
     error WrongState(State expected, State actual);
     error WrongRole(Role expected, Role actual);
@@ -134,9 +137,13 @@ contract ArborVote is IArbitrable {
     }
 
     function updatePhase(uint256 _debateId) public {
-        uint32 currentTime = uint32(block.timestamp);
-
         PhaseData storage phaseData_ = phases[_debateId];
+
+        if (phaseData_.currentPhase == Phase.Unitialized) {
+            revert DebateUninitialized({debateId: _debateId});
+        }
+
+        uint32 currentTime = uint32(block.timestamp);
 
         if (currentTime > phaseData_.votingEndTime && phaseData_.currentPhase != Phase.Finished) {
             phaseData_.currentPhase = Phase.Finished;
