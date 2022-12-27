@@ -1,7 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./interfaces/IArbitrator.sol";
 import "./interfaces/IArbitrable.sol";
@@ -15,6 +16,8 @@ contract ArborVote is IArbitrable {
     using UtilsLib for uint64;
     using UtilsLib for int64;
     using SafeERC20 for ERC20;
+    using Counters for Counters.Counter;
+    using DebateLib for Debate;
 
     uint16 internal constant MAX_ARGUMENTS = type(uint16).max;
 
@@ -22,25 +25,25 @@ contract ArborVote is IArbitrable {
     uint32 internal constant FEE_PERCENTAGE = 5;
     uint32 internal constant INITIAL_TOKENS = 100;
 
-    int64 internal constant MIX_VAL = type(int64).max / 2; // TODO why negative?
+    int64 internal constant MIX_VAL = type(int64).max / 2;
     int64 internal constant MIX_MAX = type(int64).max;
 
     IProofOfHumanity private poh; // PoH mainnet: 0x1dAD862095d40d43c2109370121cf087632874dB
 
-    uint240 public debatesCount;
-    mapping(uint240 => Debate) public debates;
-    mapping(uint240 => mapping(uint16 => uint256)) public disputes;
+    Counters.Counter private debatesCounter;
+    mapping(uint256 => Debate) public debates;
+    mapping(uint256 => mapping(uint16 => uint256)) public disputes;
     mapping(uint256 => mapping(address => User)) public users;
     mapping(uint256 => PhaseData) public phases;
 
     IArbitrator arbitrator;
 
-    event Challenged(uint256 disputeId, uint240 debateId, uint16 argumentId, bytes reason);
+    event Challenged(uint256 disputeId, uint256 debateId, uint16 argumentId, bytes reason);
 
-    event DisputeResolved(uint240 debateId, uint16 argumentId, uint256 disputeId);
+    event DisputeResolved(uint256 debateId, uint16 argumentId, uint256 disputeId);
 
     event ArgumentUpdated(
-        uint240 indexed debateId,
+        uint256 indexed debateId,
         uint16 indexed argumentId,
         uint16 indexed parentArgumentId,
         bytes32 contentURI
@@ -48,13 +51,13 @@ contract ArborVote is IArbitrable {
 
     event Invested(
         address indexed buyer,
-        uint240 indexed debateId,
+        uint256 indexed debateId,
         uint16 indexed argumentId,
         InvestmentData data
     );
 
     event ArgumentImpactCalculated(
-        uint240 indexed debateId,
+        uint256 indexed debateId,
         uint16 indexed argumentId,
         int64 impact
     );
@@ -75,7 +78,7 @@ contract ArborVote is IArbitrable {
     }
 
     modifier onlyArgumentState(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         State _state
     ) {
@@ -83,7 +86,7 @@ contract ArborVote is IArbitrable {
         _;
     }
 
-    modifier onlyCreator(uint240 _debateId, uint16 _argumentId) {
+    modifier onlyCreator(uint256 _debateId, uint16 _argumentId) {
         _onlyCreator(_debateId, _argumentId);
         _;
     }
@@ -100,10 +103,16 @@ contract ArborVote is IArbitrable {
     function createDebate(
         bytes32 _contentURI,
         uint32 _timeUnit
-    ) external onlyArgumentState(debatesCount, 0, State.Unitialized) returns (uint240 debateId) {
-        // Create the root Argument
+    )
+        external
+        onlyArgumentState(debatesCounter.current(), 0, State.Unitialized)
+        returns (uint256 debateId)
+    {
+        debateId = debatesCounter.current();
+        debatesCounter.increment();
 
-        Debate storage currentDebate_ = debates[debatesCount];
+        // Create the root Argument
+        Debate storage currentDebate_ = debates[debateId];
         Argument storage rootArgument_ = currentDebate_.arguments[0];
 
         // Create the root argument of the tree
@@ -113,8 +122,6 @@ contract ArborVote is IArbitrable {
         rootArgument_.metadata.state = State.Final;
         rootArgument_.contentURI = _contentURI;
 
-        debateId = debatesCount; // TODO use OZ counter
-
         // Store the phase related data
         PhaseData storage phaseData_ = phases[debateId];
         phaseData_.currentPhase = Phase.Editing;
@@ -123,13 +130,10 @@ contract ArborVote is IArbitrable {
         phaseData_.votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
 
         // increment counters
-        currentDebate_.argumentsCount++;
-        unchecked {
-            ++debatesCount;
-        }
+        currentDebate_.incrementArgumentCounter();
     }
 
-    function updatePhase(uint240 _debateId) public {
+    function updatePhase(uint256 _debateId) public {
         uint32 currentTime = uint32(block.timestamp);
 
         PhaseData storage phaseData_ = phases[_debateId];
@@ -144,7 +148,7 @@ contract ArborVote is IArbitrable {
     }
 
     function join(
-        uint240 _debateId
+        uint256 _debateId
     ) external excludePhase(_debateId, Phase.Finished) onlyRole(_debateId, Role.Unassigned) {
         require(poh.isRegistered(msg.sender)); // not failsafe - takes 3.5 days to switch address
 
@@ -154,7 +158,7 @@ contract ArborVote is IArbitrable {
         user_.tokens = INITIAL_TOKENS;
     }
 
-    function debateResult(uint240 _debateId) external view returns (bool) {
+    function debateResult(uint256 _debateId) external view returns (bool) {
         if (phases[_debateId].currentPhase != Phase.Finished)
             revert WrongPhase({expected: Phase.Finished, actual: phases[_debateId].currentPhase});
 
@@ -162,7 +166,7 @@ contract ArborVote is IArbitrable {
     }
 
     function finalizeArgument(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId
     ) public onlyArgumentState(_debateId, _argumentId, State.Created) {
         Metadata storage metadata_ = debates[_debateId].arguments[_argumentId].metadata;
@@ -175,7 +179,7 @@ contract ArborVote is IArbitrable {
     /* @notice Create an argument with an initial approval
      */
     function addArgument(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _parentArgumentId,
         bytes32 _contentURI,
         bool _isSupporting,
@@ -222,7 +226,7 @@ contract ArborVote is IArbitrable {
     }
 
     function moveArgument(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         uint16 _newParentArgumentId
     )
@@ -253,7 +257,7 @@ contract ArborVote is IArbitrable {
     }
 
     function alterArgument(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         bytes32 _contentURI
     )
@@ -279,7 +283,7 @@ contract ArborVote is IArbitrable {
     }
 
     function challenge(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         bytes calldata _reason
     )
@@ -312,7 +316,7 @@ contract ArborVote is IArbitrable {
     }
 
     function resolve(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId
     )
         external
@@ -336,7 +340,7 @@ contract ArborVote is IArbitrable {
     }
 
     function calculateMint(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         uint32 _voteTokenAmount
     ) public view returns (InvestmentData memory data) {
@@ -358,7 +362,7 @@ contract ArborVote is IArbitrable {
     }
 
     function investInPro(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         uint32 _amount
     ) external onlyPhase(_debateId, Phase.Voting) {
@@ -383,7 +387,7 @@ contract ArborVote is IArbitrable {
     }
 
     function investInCon(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         uint32 _amount
     ) external onlyPhase(_debateId, Phase.Voting) {
@@ -407,7 +411,7 @@ contract ArborVote is IArbitrable {
         });
     }
 
-    function tallyTree(uint240 _debateId) external onlyPhase(_debateId, Phase.Finished) {
+    function tallyTree(uint256 _debateId) external onlyPhase(_debateId, Phase.Finished) {
         require(debates[_debateId].disputedArgumentIds.length == 0); // TODO: because things are finished, we can assume this is zero
 
         uint16[] memory leafArgumentIds = debates[_debateId].leafArgumentIds;
@@ -425,14 +429,14 @@ contract ArborVote is IArbitrable {
             revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
     }
 
-    function _onlyCreator(uint240 _debateId, uint16 _argumentId) internal view {
+    function _onlyCreator(uint256 _debateId, uint16 _argumentId) internal view {
         address creator = debates[_debateId].arguments[_argumentId].metadata.creator;
         if (msg.sender != creator) {
             revert WrongAddress({expected: creator, actual: msg.sender});
         }
     }
 
-    function _onlyArgumentState(uint240 _debateId, uint16 _argumentId, State _state) internal view {
+    function _onlyArgumentState(uint256 _debateId, uint16 _argumentId, State _state) internal view {
         State state = debates[_debateId].arguments[_argumentId].metadata.state;
         if (state != _state) {
             revert WrongState({expected: _state, actual: state});
@@ -453,7 +457,7 @@ contract ArborVote is IArbitrable {
     }
 
     function _createArgument(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _parentArgumentId,
         bytes32 _contentURI,
         bool _isSupporting,
@@ -461,8 +465,8 @@ contract ArborVote is IArbitrable {
     ) internal returns (uint16 newArgumentId) {
         Debate storage debate_ = debates[_debateId];
 
-        newArgumentId = debate_.argumentsCount; // TODO use counter
-        debate_.argumentsCount++;
+        newArgumentId = debate_.getArgumentsCount(); // TODO use counter
+        debate_.incrementArgumentCounter();
 
         Argument storage argument_ = debate_.arguments[newArgumentId];
 
@@ -483,7 +487,7 @@ contract ArborVote is IArbitrable {
         argument_.contentURI = _contentURI;
     }
 
-    function _updateParentAfterChildRemoval(uint240 _debateId, uint16 _parentArgumentId) internal {
+    function _updateParentAfterChildRemoval(uint256 _debateId, uint16 _parentArgumentId) internal {
         Debate storage debate_ = debates[_debateId];
         Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
 
@@ -499,7 +503,7 @@ contract ArborVote is IArbitrable {
     }
 
     function _createDispute(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId
     ) internal returns (uint256 disputeId) {
         (address recipient, ERC20 feeToken, uint256 feeAmount) = arbitrator.getDisputeFees();
@@ -515,7 +519,7 @@ contract ArborVote is IArbitrable {
 
     function _submitEvidence(
         uint256 _disputeId,
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         bytes32 _contentURI,
         bytes calldata _reason
@@ -530,7 +534,7 @@ contract ArborVote is IArbitrable {
     }
 
     function _executeProInvestment(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         InvestmentData memory data
     ) internal {
@@ -550,7 +554,7 @@ contract ArborVote is IArbitrable {
     }
 
     function _executeConInvestment(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId,
         InvestmentData memory data
     ) internal {
@@ -570,7 +574,7 @@ contract ArborVote is IArbitrable {
         market_.con -= data.conSwap;
     }
 
-    function _addDispute(uint240 _debateId, uint16 _argumentId, uint256 _disputeId) internal {
+    function _addDispute(uint256 _debateId, uint16 _argumentId, uint256 _disputeId) internal {
         Debate storage debate_ = debates[_debateId];
 
         debate_.arguments[_argumentId].metadata.state = State.Disputed;
@@ -579,7 +583,7 @@ contract ArborVote is IArbitrable {
         disputes[_debateId][_argumentId] = _disputeId;
     }
 
-    function _clearDispute(uint240 _debateId, uint16 _argumentId, State _state) internal {
+    function _clearDispute(uint256 _debateId, uint16 _argumentId, State _state) internal {
         Debate storage debate_ = debates[_debateId];
 
         debate_.arguments[_argumentId].metadata.state = _state;
@@ -592,7 +596,7 @@ contract ArborVote is IArbitrable {
         // TODO is this really always the order? Does this stem from the pair?
     }
 
-    function _tallyNode(uint240 _debateId, uint16 _argumentId) internal {
+    function _tallyNode(uint256 _debateId, uint16 _argumentId) internal {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
         uint16 parentArgumentId = argument_.metadata.parenArgumentId;
         Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
@@ -633,7 +637,7 @@ contract ArborVote is IArbitrable {
     }
 
     function _calculateOwnImpact(
-        uint240 _debateId,
+        uint256 _debateId,
         uint16 _argumentId
     ) internal view returns (int64 own) {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];

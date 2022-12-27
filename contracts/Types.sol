@@ -1,6 +1,20 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
+
+library DebateLib {
+    function incrementArgumentCounter(Debate storage _debate) internal {
+        unchecked {
+            _debate.argumentsCount += 1;
+        }
+    }
+
+    function getArgumentsCount(Debate storage _debate) internal view returns (uint16) {
+        return _debate.argumentsCount;
+    }
+}
+
 struct Debate {
     mapping(uint16 => Argument) arguments;
     uint32 totalVotes;
