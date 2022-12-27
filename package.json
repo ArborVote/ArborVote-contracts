@@ -15,7 +15,8 @@
   "scripts": {
     "clean": "rm -rf artifacts cache",
     "build": "hardhat compile",
-    "test": "npx hardhat test"
+    "test": "npx hardhat test",
+    "docgen": "npx hardhat docgen"
   },
   "homepage": "https://github.com/ArborVote/ArborVote-contracts#readme",
   "devDependencies": {
