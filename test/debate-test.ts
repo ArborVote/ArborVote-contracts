@@ -83,7 +83,7 @@ describe('ArborVote', function () {
     });
   });
 
-  describe('updatePhase', async function () {
+  describe('advancePhase', async function () {
     beforeEach(async function () {
       await arborVote.initialize(mockProofOfHumanity.address);
       debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
@@ -96,7 +96,7 @@ describe('ArborVote', function () {
       ).to.eq(Phase.Unitialized);
 
       await expect(
-        arborVote.updatePhase(uninitializedDebateId)
+        arborVote.advancePhase(uninitializedDebateId)
       ).to.be.revertedWith(
         customError('DebateUninitialized', uninitializedDebateId)
       );
@@ -107,13 +107,13 @@ describe('ArborVote', function () {
       expect(phaseData.currentPhase).to.eq(Phase.Editing);
 
       await advanceTimeTo(phaseData.editingEndTime);
-      await arborVote.updatePhase(debateId);
+      await arborVote.advancePhase(debateId);
       expect((await arborVote.phases(debateId)).currentPhase).to.eq(
         Phase.Voting
       );
 
       await advanceTimeTo(phaseData.votingEndTime);
-      await arborVote.updatePhase(debateId);
+      await arborVote.advancePhase(debateId);
       expect((await arborVote.phases(debateId)).currentPhase).to.eq(
         Phase.Finished
       );

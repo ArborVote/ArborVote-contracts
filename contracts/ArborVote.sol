@@ -38,10 +38,28 @@ contract ArborVote is IArbitrable {
 
     IArbitrator arbitrator;
 
-    event Challenged(uint256 disputeId, uint256 debateId, uint16 argumentId, bytes reason);
+    /// @notice Emitted when an argument in a debate gets disputed.
+    /// @param debateId The ID of the debate.
+    /// @param argumentId The ID of the argument.
+    /// @param disputeId The ID of the dispute raised.
+    /// @param reason The reason for the dispute.
+    event DisputeRaised(
+        uint256 indexed debateId,
+        uint16 indexed argumentId,
+        uint256 disputeId,
+        bytes reason
+    );
 
-    event DisputeResolved(uint256 debateId, uint16 argumentId, uint256 disputeId);
+    /// @notice Emitted when a dispute of an argument in a debate is resolved.
+    /// @param debateId The ID of the debate.
+    /// @param argumentId The ID of the argument.
+    event DisputeResolved(uint256 indexed debateId, uint16 indexed argumentId, uint256 disputeId);
 
+    /// @notice Emitted when an argument in a debate is updated.
+    /// @param debateId The ID of the debate.
+    /// @param argumentId The ID of the argument.
+    /// @param parentArgumentId The ID of the parent argument.
+    /// @param contentURI The URI pointing to the content of the argument.
     event ArgumentUpdated(
         uint256 indexed debateId,
         uint16 indexed argumentId,
@@ -49,13 +67,22 @@ contract ArborVote is IArbitrable {
         bytes32 contentURI
     );
 
+    /// @notice Emitted when an debater invests vote tokens in an argument in a debate.
+    /// @param debateId The ID of the debate.
+    /// @param argumentId The ID of the argument.
+    /// @param investor The address of the investor.
+    /// @param data The data of the investment that was made.
     event Invested(
-        address indexed buyer,
         uint256 indexed debateId,
         uint16 indexed argumentId,
+        address indexed investor,
         InvestmentData data
     );
 
+    /// @notice Emitted when the impact of an argument in a debate was calculated.
+    /// @param debateId The ID of the debate.
+    /// @param argumentId The ID of the argument.
+    /// @param impact The impact value of the argument.
     event ArgumentImpactCalculated(
         uint256 indexed debateId,
         uint16 indexed argumentId,
@@ -63,23 +90,49 @@ contract ArborVote is IArbitrable {
     );
 
     /// @notice Thrown if a debate is uninitialized.
+    /// @param debateId The ID of the debate.
     error DebateUninitialized(uint256 debateId);
 
-    error WrongPhase(Phase expected, Phase actual);
-    error WrongState(State expected, State actual);
-    error WrongRole(Role expected, Role actual);
-    error WrongAddress(address expected, address actual);
+    /// @notice Thrown if the phase of a debate is invalid.
+    /// @param expected The expected debate phase.
+    /// @param actual The actual debate phase.
+    error PhaseInvalid(Phase expected, Phase actual);
 
+    /// @notice Thrown if the state of an argument is invalid.
+    /// @param expected The expected argument state.
+    /// @param actual The actual argument state.
+    error StateInvalid(State expected, State actual);
+
+    /// @notice Thrown if the role of a user is invalid.
+    /// @param expected The expected role.
+    /// @param actual The actual role.
+    error RoleInvalid(Role expected, Role actual);
+
+    /// @notice Thrown if an address is invalid.
+    /// @param expected The expected address.
+    /// @param actual The actual address.
+    error AddressInvalid(address expected, address actual);
+
+    /// @notice A modifier to restrict functions to only be called if the debate is in a certain phase.
+    /// @param _debateId The ID of the debate.
+    /// @param _phase The phase of the debate required.
     modifier onlyPhase(uint256 _debateId, Phase _phase) {
         _onlyPhase(_debateId, _phase);
         _;
     }
 
+    /// @notice A modifier to restrict functions to only be called if the debate is not in a certain phase.
+    /// @param _debateId The ID of the debate.
+    /// @param _phase The phase of the debate excluded.
     modifier excludePhase(uint256 _debateId, Phase _phase) {
         _excludePhase(_debateId, _phase);
         _;
     }
 
+    /// @notice A modifier to restrict functions to only be called if the argument is in a certain state.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
+    /// @param _state The state of the argument required.
     modifier onlyArgumentState(
         uint256 _debateId,
         uint16 _argumentId,
@@ -89,20 +142,31 @@ contract ArborVote is IArbitrable {
         _;
     }
 
+    /// @notice A modifier to restrict functions to only be called by the creator of an argument.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
     modifier onlyCreator(uint256 _debateId, uint16 _argumentId) {
         _onlyCreator(_debateId, _argumentId);
         _;
     }
 
+    /// @notice A modifier to restrict functions to be only called by accounts holding a certain role.
+    /// @param _debateId The ID of the debate.
+    /// @param _role The role required.
     modifier onlyRole(uint256 _debateId, Role _role) {
         _onlyRole(_debateId, _role);
         _;
     }
 
+    /// @notice Initializes the contract.
+    /// @param _poh The proof of humanity registry contract.
     function initialize(IProofOfHumanity _poh) external {
         poh = _poh;
     }
 
+    /// @notice Creates a new debate.
+    /// @param _contentURI The URI pointing to the content of the debate thesis.
+    /// @param _timeUnit The time unit of the debate determining the editing and voting times.
     function createDebate(
         bytes32 _contentURI,
         uint32 _timeUnit
@@ -134,9 +198,18 @@ contract ArborVote is IArbitrable {
 
         // increment counters
         currentDebate_.incrementArgumentCounter();
+
+        emit ArgumentUpdated({
+            debateId: debateId,
+            argumentId: 0,
+            parentArgumentId: 0,
+            contentURI: _contentURI
+        });
     }
 
-    function updatePhase(uint256 _debateId) public {
+    /// @notice Advances the phase of the debate.
+    /// @param _debateId The ID of the debate.
+    function advancePhase(uint256 _debateId) public {
         PhaseData storage phaseData_ = phases[_debateId];
 
         if (phaseData_.currentPhase == Phase.Unitialized) {
@@ -154,6 +227,8 @@ contract ArborVote is IArbitrable {
         }
     }
 
+    /// @notice Join a debate and receive debate tokens.
+    /// @param _debateId The ID of the debate.
     function join(
         uint256 _debateId
     ) external excludePhase(_debateId, Phase.Finished) onlyRole(_debateId, Role.Unassigned) {
@@ -165,13 +240,19 @@ contract ArborVote is IArbitrable {
         user_.tokens = INITIAL_TOKENS;
     }
 
-    function debateResult(uint256 _debateId) external view returns (bool) {
+    /// @notice Returns the outcome of the debate.
+    /// @param _debateId The ID of the debate.
+    /// @return approved Whether the debate approved the root thesis or not.
+    function outcome(uint256 _debateId) external view returns (bool approved) {
         if (phases[_debateId].currentPhase != Phase.Finished)
-            revert WrongPhase({expected: Phase.Finished, actual: phases[_debateId].currentPhase});
+            revert PhaseInvalid({expected: Phase.Finished, actual: phases[_debateId].currentPhase});
 
-        return debates[_debateId].arguments[0].metadata.childsImpact > 0;
+        approved = debates[_debateId].arguments[0].metadata.childsImpact > 0;
     }
 
+    /// @notice Finalizes an argument of a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to be finalized.
     function finalizeArgument(
         uint256 _debateId,
         uint16 _argumentId
@@ -183,8 +264,13 @@ contract ArborVote is IArbitrable {
         metadata_.state = State.Final;
     }
 
-    /* @notice Create an argument with an initial approval
-     */
+    /// @notice Adds an argument below a parent argument with a certain initial approval.
+    /// @param _debateId The ID of the debate.
+    /// @param _parentArgumentId The ID of the argument to be finalized.
+    /// @param _contentURI The URI pointing to the argument content.
+    /// @param _isSupporting Whether the argument supports or opposes the parent argument.
+    /// @param _initialApproval The initial approval of the argument.
+    /// @dev This requires the argument to not be non-final.
     function addArgument(
         uint256 _debateId,
         uint16 _parentArgumentId,
@@ -195,6 +281,7 @@ contract ArborVote is IArbitrable {
         public
         onlyRole(_debateId, Role.Participant)
         onlyArgumentState(_debateId, _parentArgumentId, State.Final)
+        returns (uint16 newArgumentId)
     {
         User storage user_ = users[_debateId][msg.sender];
 
@@ -207,7 +294,7 @@ contract ArborVote is IArbitrable {
         user_.tokens -= DEBATE_DEPOSIT;
 
         // Create new argument
-        uint16 newArgumentId = _createArgument(
+        newArgumentId = _createArgument(
             _debateId,
             _parentArgumentId,
             _contentURI,
@@ -232,6 +319,10 @@ contract ArborVote is IArbitrable {
         });
     }
 
+    /// @notice Moves an argument below a new parent argument.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to be moved.
+    /// @param _newParentArgumentId The ID of the new parent argument.
     function moveArgument(
         uint256 _debateId,
         uint16 _argumentId,
@@ -263,6 +354,10 @@ contract ArborVote is IArbitrable {
         });
     }
 
+    /// @notice Moves an argument below a new parent argument.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to be moved.
+    /// @param _contentURI The URI pointing to the argument content.
     function alterArgument(
         uint256 _debateId,
         uint16 _argumentId,
@@ -289,7 +384,12 @@ contract ArborVote is IArbitrable {
         });
     }
 
-    function challenge(
+    /// @notice Raises a dispute for an argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _reason The reason for raising the dispute.
+    /// @return disputeId The ID of the dispute.
+    function raiseDispute(
         uint256 _debateId,
         uint16 _argumentId,
         bytes calldata _reason
@@ -304,9 +404,9 @@ contract ArborVote is IArbitrable {
 
         // submit evidence
         _submitEvidence(
-            disputeId,
             _debateId,
             _argumentId,
+            disputeId,
             debates[_debateId].arguments[_argumentId].contentURI,
             _reason
         );
@@ -314,15 +414,18 @@ contract ArborVote is IArbitrable {
         // state changes
         _addDispute(_debateId, _argumentId, disputeId);
 
-        emit Challenged({
-            disputeId: disputeId,
+        emit DisputeRaised({
             debateId: _debateId,
             argumentId: _argumentId,
+            disputeId: disputeId,
             reason: _reason
         });
     }
 
-    function resolve(
+    /// @notice Resolves a dispute for an argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument being disputed.
+    function resolveDispute(
         uint256 _debateId,
         uint16 _argumentId
     )
@@ -336,88 +439,106 @@ contract ArborVote is IArbitrable {
         (address subject, uint256 ruling) = arbitrator.rule(disputeId);
         require(subject == address(this));
 
+        Debate storage debate_ = debates[_debateId];
+
+        debate_.disputedArgumentIds.removeById(_argumentId);
         if (ruling == 0) {
-            _clearDispute(_debateId, _argumentId, State.Final);
+            debate_.arguments[_argumentId].metadata.state = State.Final;
         } else {
-            _clearDispute(_debateId, _argumentId, State.Invalid);
+            debate_.arguments[_argumentId].metadata.state = State.Invalid;
         }
 
         emit Ruled({arbitrator: arbitrator, disputeId: disputeId, ruling: ruling});
         emit DisputeResolved({debateId: _debateId, argumentId: _argumentId, disputeId: disputeId});
     }
 
-    function calculateMint(
+    /// @notice Calculates the amounts of mintable and swapable pro and con shares to be returned for an amount of vote token to be invested.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _voteTokenAmount The amount of vote tokens to be invested.
+    /// @return investmentData The container containing the calculated amounts.
+    function calculateInvestment(
         uint256 _debateId,
         uint16 _argumentId,
         uint32 _voteTokenAmount
-    ) public view returns (InvestmentData memory data) {
-        data.voteTokensInvested = _voteTokenAmount;
+    ) public view returns (InvestmentData memory investmentData) {
+        investmentData.voteTokensInvested = _voteTokenAmount;
 
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
-        data.fee = _voteTokenAmount.multipyByFraction(FEE_PERCENTAGE, 100);
-        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - data.fee).split(
+        investmentData.fee = _voteTokenAmount.multipyByFraction(FEE_PERCENTAGE, 100);
+        (uint32 proMint, uint32 conMint) = (_voteTokenAmount - investmentData.fee).split(
             argument_.market.pro,
             argument_.market.con
         );
 
-        data.proMint = proMint;
-        data.conMint = conMint;
+        investmentData.proMint = proMint;
+        investmentData.conMint = conMint;
 
-        data.proSwap = _calculateSwap(proMint, conMint, conMint);
-        data.conSwap = _calculateSwap(proMint, conMint, proMint);
+        investmentData.proSwap = _calculateProSwap(proMint, conMint);
+        investmentData.conSwap = _calculateConSwap(proMint, conMint);
     }
 
+    /// @notice Invests an amount of vote tokens into pro shares.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _voteTokenAmount The amount of vote tokens to be invested.
     function investInPro(
         uint256 _debateId,
         uint16 _argumentId,
-        uint32 _amount
+        uint32 _voteTokenAmount
     ) external onlyPhase(_debateId, Phase.Voting) {
         User storage user_ = users[_debateId][msg.sender];
 
-        require(user_.tokens >= _amount);
-        user_.tokens -= _amount;
+        require(user_.tokens >= _voteTokenAmount);
+        user_.tokens -= _voteTokenAmount;
 
-        InvestmentData memory data = calculateMint(_debateId, _argumentId, _amount);
+        InvestmentData memory data = calculateInvestment(_debateId, _argumentId, _voteTokenAmount);
         data.conSwap = 0;
 
         _executeProInvestment(_debateId, _argumentId, data);
 
-        user_.shares[_argumentId].pro += _amount;
+        user_.shares[_argumentId].pro += _voteTokenAmount;
 
         emit Invested({
-            buyer: msg.sender,
             debateId: _debateId,
             argumentId: _argumentId,
+            investor: msg.sender,
             data: data
         });
     }
 
+    /// @notice Invests an amount of vote tokens into con shares.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _voteTokenAmount The amount of vote tokens to be invested.
     function investInCon(
         uint256 _debateId,
         uint16 _argumentId,
-        uint32 _amount
+        uint32 _voteTokenAmount
     ) external onlyPhase(_debateId, Phase.Voting) {
         User storage user_ = users[_debateId][msg.sender];
 
-        require(user_.tokens >= _amount);
-        user_.tokens -= _amount;
+        require(user_.tokens >= _voteTokenAmount);
+        user_.tokens -= _voteTokenAmount;
 
-        InvestmentData memory data = calculateMint(_debateId, _argumentId, _amount);
+        InvestmentData memory data = calculateInvestment(_debateId, _argumentId, _voteTokenAmount);
         data.proSwap = 0;
 
         _executeConInvestment(_debateId, _argumentId, data);
 
-        user_.shares[_argumentId].con += _amount;
+        user_.shares[_argumentId].con += _voteTokenAmount;
 
         emit Invested({
-            buyer: msg.sender,
             debateId: _debateId,
             argumentId: _argumentId,
+            investor: msg.sender,
             data: data
         });
     }
 
+    /// @notice Tallies the argument tree of a debate.
+    /// @param _debateId The ID of the debate.
     function tallyTree(uint256 _debateId) external onlyPhase(_debateId, Phase.Finished) {
         require(debates[_debateId].disputedArgumentIds.length == 0); // TODO: because things are finished, we can assume this is zero
 
@@ -431,38 +552,61 @@ contract ArborVote is IArbitrable {
         phases[_debateId].currentPhase = Phase.Finished;
     }
 
+    /// @notice An internal function reverting if the debate is not in a certain phase.
+    /// @param _debateId The ID of the debate.
+    /// @param _phase The phase of the debate required.
     function _onlyPhase(uint256 _debateId, Phase _phase) internal view {
         if (phases[_debateId].currentPhase != _phase)
-            revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
+            revert PhaseInvalid({expected: _phase, actual: phases[_debateId].currentPhase});
     }
 
+    /// @notice An internal function reverting if the debate is not called by the argument creator.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
     function _onlyCreator(uint256 _debateId, uint16 _argumentId) internal view {
         address creator = debates[_debateId].arguments[_argumentId].metadata.creator;
         if (msg.sender != creator) {
-            revert WrongAddress({expected: creator, actual: msg.sender});
+            revert AddressInvalid({expected: creator, actual: msg.sender});
         }
     }
 
+    /// @notice An internal function reverting if the debate if the argument is not in a certain state.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
+    /// @param _state The state of the argument required.
     function _onlyArgumentState(uint256 _debateId, uint16 _argumentId, State _state) internal view {
         State state = debates[_debateId].arguments[_argumentId].metadata.state;
         if (state != _state) {
-            revert WrongState({expected: _state, actual: state});
+            revert StateInvalid({expected: _state, actual: state});
         }
     }
 
+    /// @notice An internal function reverting if the debate is not called by an account holding a certain role.
+    /// @param _debateId The ID of the debate.
+    /// @param _role The role required.
     function _onlyRole(uint256 _debateId, Role _role) internal view {
         Role role = users[_debateId][msg.sender].role;
         if (role != _role) {
-            revert WrongRole({expected: _role, actual: role});
+            revert RoleInvalid({expected: _role, actual: role});
         }
     }
 
+    /// @notice An internal function reverting if the debate is in a certain phase.
+    /// @param _debateId The ID of the debate.
+    /// @param _phase The phase of the debate excluded.
     function _excludePhase(uint256 _debateId, Phase _phase) internal view {
         if (phases[_debateId].currentPhase == _phase) {
-            revert WrongPhase({expected: _phase, actual: phases[_debateId].currentPhase});
+            revert PhaseInvalid({expected: _phase, actual: phases[_debateId].currentPhase});
         }
     }
 
+    /// @notice Internal function to create an argument below a parent argument with a certain initial approval.
+    /// @param _debateId The ID of the debate.
+    /// @param _parentArgumentId The ID of the parent argument.
+    /// @param _contentURI The URI pointing to the argument content.
+    /// @param _isSupporting Whether the argument supports or opposes the parent argument.
+    /// @param _initialApproval The initial approval of the argument.
+    /// @return newArgumentId The ID of the created argument.
     function _createArgument(
         uint256 _debateId,
         uint16 _parentArgumentId,
@@ -472,7 +616,7 @@ contract ArborVote is IArbitrable {
     ) internal returns (uint16 newArgumentId) {
         Debate storage debate_ = debates[_debateId];
 
-        newArgumentId = debate_.getArgumentsCount(); // TODO use counter
+        newArgumentId = debate_.getArgumentsCount();
         debate_.incrementArgumentCounter();
 
         Argument storage argument_ = debate_.arguments[newArgumentId];
@@ -482,7 +626,7 @@ contract ArborVote is IArbitrable {
             100 - _initialApproval,
             _initialApproval
         );
-        argument_.market.const = argument_.market.pro * argument_.market.con; // TODO local variable?
+        argument_.market.const = argument_.market.pro * argument_.market.con;
         argument_.market.vote = DEBATE_DEPOSIT;
 
         argument_.metadata.creator = msg.sender;
@@ -494,6 +638,9 @@ contract ArborVote is IArbitrable {
         argument_.contentURI = _contentURI;
     }
 
+    /// @notice Internal function to update a parent argument after the removal of a child argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _parentArgumentId The ID of the parent argument.
     function _updateParentAfterChildRemoval(uint256 _debateId, uint16 _parentArgumentId) internal {
         Debate storage debate_ = debates[_debateId];
         Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
@@ -509,6 +656,10 @@ contract ArborVote is IArbitrable {
         }
     }
 
+    /// @notice Internal function to create a dispute for an argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to be disputed.
+    /// @return disputeId The ID of the dispute created.
     function _createDispute(
         uint256 _debateId,
         uint16 _argumentId
@@ -524,10 +675,16 @@ contract ArborVote is IArbitrable {
         feeToken.safeApprove(recipient, 0); // reset just in case non-compliant tokens (that fail on non-zero to non-zero approvals) are used
     }
 
+    /// @notice Internal function to submit evidence for a dispute for an argument in a debate.
+    /// @param _disputeId The ID of the dispute to submit the evidence for.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _contentURI The URI pointing to the argument content.
+    /// @param _reason The reason for raising the dispute.
     function _submitEvidence(
-        uint256 _disputeId,
         uint256 _debateId,
         uint16 _argumentId,
+        uint256 _disputeId,
         bytes32 _contentURI,
         bytes calldata _reason
     ) internal {
@@ -540,12 +697,29 @@ contract ArborVote is IArbitrable {
         arbitrator.closeEvidencePeriod(_disputeId);
     }
 
+    /// @notice Internal function to submit evidence for a dispute for an argument in a debate.
+    /// @param _disputeId The ID of the dispute to submit the evidence for.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    function _addDispute(uint256 _debateId, uint16 _argumentId, uint256 _disputeId) internal {
+        Debate storage debate_ = debates[_debateId];
+
+        debate_.arguments[_argumentId].metadata.state = State.Disputed;
+        debate_.disputedArgumentIds.push(_argumentId);
+
+        disputes[_debateId][_argumentId] = _disputeId;
+    }
+
+    /// @notice Internal function to execute an investment to obtain pro tokens on the argument's market in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _investment The container containing the investment data.
     function _executeProInvestment(
         uint256 _debateId,
         uint16 _argumentId,
-        InvestmentData memory data
+        InvestmentData memory _investment
     ) internal {
-        uint32 votes = data.voteTokensInvested - data.fee;
+        uint32 votes = _investment.voteTokensInvested - _investment.fee;
 
         Debate storage debate_ = debates[_debateId];
         debate_.totalVotes += votes;
@@ -555,17 +729,21 @@ contract ArborVote is IArbitrable {
         Market storage market_ = debate_.arguments[_argumentId].market;
 
         market_.vote += votes;
-        market_.fees += data.fee;
-        market_.con += data.conMint;
-        market_.pro -= data.proSwap;
+        market_.fees += _investment.fee;
+        market_.con += _investment.conMint;
+        market_.pro -= _investment.proSwap;
     }
 
+    /// @notice Internal function to execute an investment to obtain cont tokens on the argument's market in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument to dispute.
+    /// @param _investment The container containing the investment data.
     function _executeConInvestment(
         uint256 _debateId,
         uint16 _argumentId,
-        InvestmentData memory data
+        InvestmentData memory _investment
     ) internal {
-        uint32 votes = data.voteTokensInvested - data.fee;
+        uint32 votes = _investment.voteTokensInvested - _investment.fee;
         debates[_debateId].totalVotes += votes;
 
         Debate storage debate_ = debates[_debateId];
@@ -576,33 +754,41 @@ contract ArborVote is IArbitrable {
         Market storage market_ = debate_.arguments[_argumentId].market;
 
         market_.vote += votes;
-        market_.fees += data.fee;
-        market_.pro += data.proMint;
-        market_.con -= data.conSwap;
+        market_.fees += _investment.fee;
+        market_.pro += _investment.proMint;
+        market_.con -= _investment.conSwap;
     }
 
-    function _addDispute(uint256 _debateId, uint16 _argumentId, uint256 _disputeId) internal {
-        Debate storage debate_ = debates[_debateId];
-
-        debate_.arguments[_argumentId].metadata.state = State.Disputed;
-        debate_.disputedArgumentIds.push(_argumentId);
-
-        disputes[_debateId][_argumentId] = _disputeId;
+    /// @notice Internal function to calculate the amount of pro tokens obtained from swapping the minted con tokens.
+    /// @param _proMint The amount of pro tokens.
+    /// @param _conMint The amount of con tokens.
+    /// @return proSwap The amount of pro tokens obtained from swapping the minted con tokens.
+    function _calculateProSwap(
+        uint32 _proMint,
+        uint32 _conMint
+    ) internal pure returns (uint32 proSwap) {
+        return _proMint - _proMint / 2; // TODO Revisit formulas
     }
 
-    function _clearDispute(uint256 _debateId, uint16 _argumentId, State _state) internal {
-        Debate storage debate_ = debates[_debateId];
-
-        debate_.arguments[_argumentId].metadata.state = _state;
-        debate_.disputedArgumentIds.removeById(_argumentId);
+    /// @notice Internal function to calculate the amount of con tokens obtained from swapping the minted pro tokens.
+    /// @param _proMint The amount of pro tokens.
+    /// @param _conMint The amount of con tokens.
+    /// @return conSwap The amount of con tokens obtained from swapping the minted pro tokens.
+    function _calculateConSwap(
+        uint32 _proMint,
+        uint32 _conMint
+    ) internal pure returns (uint32 conSwap) {
+        conSwap = _proMint - _proMint / (1 + _proMint / _conMint); // TODO Revisit formulas
     }
 
-    // TODO add explanation
-    function _calculateSwap(uint32 _pro, uint32 _con, uint32 _swap) internal pure returns (uint32) {
-        return _pro - _pro / (1 + _swap / _con);
-        // TODO is this really always the order? Does this stem from the pair?
-    }
+    //function _calculateSwap(uint32 _proMint, uint32 _conMint, uint32 _swap) internal pure returns //(uint32) {
+    //    return _proMint - _proMint / (1 + _swap / _conMint); // TODO Parentheses correct?
+    //    // TODO is this really always the order? Does this stem from the pair?
+    //}
 
+    /// @notice Internal function to tally an argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
     function _tallyNode(uint256 _debateId, uint16 _argumentId) internal {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
         uint16 parentArgumentId = argument_.metadata.parenArgumentId;
@@ -611,7 +797,7 @@ contract ArborVote is IArbitrable {
         require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
 
         // Calculate own impact $r_j$
-        int64 ownImpact = _calculateOwnImpact(_debateId, _argumentId);
+        int64 ownImpact = _calculateImpact(_debateId, _argumentId);
 
         // Apply pre-factor $\sigma_j$
         if (argument_.metadata.isSupporting) {
@@ -643,20 +829,24 @@ contract ArborVote is IArbitrable {
         });
     }
 
-    function _calculateOwnImpact(
+    /// @notice Internal function to calculate the impact of an argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
+    /// @return impact The impact of the argument.
+    function _calculateImpact(
         uint256 _debateId,
         uint16 _argumentId
-    ) internal view returns (int64 own) {
+    ) internal view returns (int64 impact) {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
         uint32 pro = argument_.market.pro;
         uint32 con = argument_.market.con;
 
         // calculate own impact
-        own = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
+        impact = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
 
-        own =
-            own.multipyByFraction(MIX_MAX - MIX_VAL, MIX_MAX) +
+        impact =
+            impact.multipyByFraction(MIX_MAX - MIX_VAL, MIX_MAX) +
             (argument_.metadata.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
     }
 }

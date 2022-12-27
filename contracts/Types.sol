@@ -39,16 +39,17 @@ struct Market {
 
 struct Metadata {
     address creator; // 160 bits = 20 bytes
-    uint32 finalizationTime;
+    bool isSupporting; // 8 bits
+    State state; // 8 bits
     uint16 parenArgumentId;
     uint16 untalliedChilds;
+    uint32 finalizationTime;
+    // 240 bits
+    // - SLOT 1 END -
     uint32 childsVote;
-    // 256 bits
     int64 childsImpact;
-    bool isSupporting;
-    State state;
-    // 80 bits
-} // 336 bits < 2x 32 bytes
+    // 128 bits
+} // 368 bits < 2x 32 bytes
 
 enum State {
     Unitialized,
