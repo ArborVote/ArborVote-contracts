@@ -2,10 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./utils/UtilsLib.sol";
+
 import "./interfaces/IArbitrator.sol";
 import "./interfaces/IArbitrable.sol";
 import "./interfaces/IProofOfHumanity.sol";
+import "./utils/UtilsLib.sol";
+import "./Types.sol";
 
 contract ArborVote is IArbitrable {
     using UtilsLib for uint16[];
@@ -13,87 +15,6 @@ contract ArborVote is IArbitrable {
     using UtilsLib for uint64;
     using UtilsLib for int64;
     using SafeERC20 for ERC20;
-
-    enum State {
-        Unitialized,
-        Created,
-        Final,
-        Disputed,
-        Invalid
-    }
-
-    struct Market {
-        uint32 pro;
-        uint32 con;
-        uint32 const;
-        uint32 vote;
-        uint32 fees;
-    }
-
-    struct Metadata {
-        address creator; // 20 bytes
-        uint32 finalizationTime; // 4 bytes
-        uint16 parenArgumentId; // 2 bytes
-        uint16 untalliedChilds; // 2 bytes
-        uint32 childsVote; // 4 bytes
-        int64 childsImpact; // 8 bytes
-        bool isSupporting; // 1 byte
-        State state; // 1 byte
-    }
-
-    struct Argument {
-        Metadata metadata; // 32 bytes
-        bytes32 contentURI; // 32 bytes // TODO emit text only as event
-        Market market; // 32 Bytes
-    } // 3x 32 bytes
-
-    struct Debate {
-        mapping(uint16 => Argument) arguments;
-        uint32 totalVotes;
-        uint16 argumentsCount;
-        uint16[] leafArgumentIds;
-        uint16[] disputedArgumentIds;
-    }
-
-    struct InvestmentData {
-        uint32 voteTokensInvested;
-        uint32 proMint;
-        uint32 conMint;
-        uint32 fee;
-        uint32 proSwap;
-        uint32 conSwap;
-    }
-
-    enum Role {
-        Unassigned,
-        Participant,
-        Juror
-    }
-
-    struct User {
-        Role role;
-        uint32 tokens;
-        mapping(uint16 => Shares) shares;
-    }
-
-    struct Shares {
-        uint32 pro;
-        uint32 con;
-    }
-
-    enum Phase {
-        Unitialized,
-        Editing,
-        Voting,
-        Finished
-    }
-
-    struct PhaseData {
-        Phase currentPhase; // 1 byte
-        uint32 editingEndTime; // 4 bytes
-        uint32 votingEndTime; // 4 bytes
-        uint32 timeUnit; // 4 bytes
-    }
 
     uint16 internal constant MAX_ARGUMENTS = type(uint16).max;
 
@@ -251,8 +172,7 @@ contract ArborVote is IArbitrable {
         metadata_.state = State.Final;
     }
 
-    /*
-     * @notice Create an argument with an initial approval
+    /* @notice Create an argument with an initial approval
      */
     function addArgument(
         uint240 _debateId,
