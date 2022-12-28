@@ -7,7 +7,6 @@ import {
   toBytes,
   convertToStruct,
   getTime,
-  advanceTime,
   advanceTimeTo,
 } from './test-helpers';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
@@ -166,7 +165,6 @@ describe('ArborVote', function () {
       expect(market.fees).to.eq(0);
 
       const metadata = convertToStruct(rootArgument.metadata);
-
       expect(metadata.creator).to.eq(signers[0].address);
       expect(metadata.state).to.eq(State.Final);
       expect(metadata.finalizationTime).to.eq(await getTime());
@@ -178,17 +176,55 @@ describe('ArborVote', function () {
       expect(await arborVote.getLeafArgumentIds(debateId)).to.be.empty;
       expect(await arborVote.getDisputedArgumentIds(debateId)).to.be.empty;
     });
+  });
 
-    it('creates a debate and allows to join', async function () {
-      await arborVote.createDebate(thesis, timeUnit);
+  describe('join', async function () {
+    beforeEach(async function () {
+      await arborVote.initialize(mockProofOfHumanity.address);
+      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
+    });
+
+    it('joins a debate', async function () {
+      expect(await arborVote.getUserRole(debateId, signers[0].address)).to.eq(
+        Role.Unassigned
+      );
+      expect(await arborVote.getUserTokens(debateId, signers[0].address)).to.eq(
+        0
+      );
+      let shares = convertToStruct(
+        await arborVote.getUserShares(
+          debateId,
+          rootArgumentId,
+          signers[0].address
+        )
+      );
+      expect(shares.pro).to.eq(0);
+      expect(shares.con).to.eq(0);
+
       await arborVote.join(debateId);
 
-      await arborVote.addArgument(
-        0,
-        0,
-        toBytes('This is a good idea.'),
-        true,
-        51
+      expect(await arborVote.getUserRole(debateId, signers[0].address)).to.eq(
+        Role.Participant
+      );
+      expect(await arborVote.getUserTokens(debateId, signers[0].address)).to.eq(
+        await arborVote.INITIAL_TOKENS()
+      );
+      shares = convertToStruct(
+        await arborVote.getUserShares(
+          debateId,
+          rootArgumentId,
+          signers[0].address
+        )
+      );
+      expect(shares.pro).to.eq(0);
+      expect(shares.con).to.eq(0);
+    });
+
+    it('reverts if the user has no valid identity proof', async function () {
+      await mockProofOfHumanity.deny(signers[0].address);
+
+      await expect(arborVote.join(debateId)).to.be.revertedWith(
+        customError('IdentityProofInvalid')
       );
     });
   });

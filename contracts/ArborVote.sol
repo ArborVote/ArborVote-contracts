@@ -23,7 +23,7 @@ contract ArborVote is IArbitrable {
 
     uint32 internal constant DEBATE_DEPOSIT = 10;
     uint32 internal constant FEE_PERCENTAGE = 5;
-    uint32 internal constant INITIAL_TOKENS = 100;
+    uint32 public constant INITIAL_TOKENS = 100;
 
     int64 internal constant MIX_VAL = type(int64).max / 2;
     int64 internal constant MIX_MAX = type(int64).max;
@@ -113,6 +113,9 @@ contract ArborVote is IArbitrable {
     /// @param actual The actual address.
     error AddressInvalid(address expected, address actual);
 
+    /// @notice Thrown if the identity proof of an account is invalid.
+    error IdentityProofInvalid();
+
     /// @notice A modifier to restrict functions to only be called if the debate is in a certain phase.
     /// @param _debateId The ID of the debate.
     /// @param _phase The phase of the debate required.
@@ -189,6 +192,34 @@ contract ArborVote is IArbitrable {
         return debates[_debateId].disputedArgumentIds;
     }
 
+    /// @notice Returns the role of a user in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _account The account of the user.
+    /// @return The user role.
+    function getUserRole(uint256 _debateId, address _account) external view returns (Role) {
+        return users[_debateId][_account].role;
+    }
+
+    /// @notice Returns the tokens of a user in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _account The account of the user.
+    /// @return The user role.
+    function getUserTokens(uint256 _debateId, address _account) external view returns (uint32) {
+        return users[_debateId][_account].tokens;
+    }
+
+    /// @notice Returns the shares of a user of an argument in a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _account The account of the user.
+    /// @return The user role.
+    function getUserShares(
+        uint256 _debateId,
+        uint16 _argumentId,
+        address _account
+    ) external view returns (Shares memory) {
+        return users[_debateId][_account].shares[_argumentId];
+    }
+
     /// @notice Creates a new debate.
     /// @param _contentURI The URI pointing to the content of the debate thesis.
     /// @param _timeUnit The time unit of the debate determining the editing and voting times.
@@ -257,7 +288,9 @@ contract ArborVote is IArbitrable {
     function join(
         uint256 _debateId
     ) external excludePhase(_debateId, Phase.Finished) onlyRole(_debateId, Role.Unassigned) {
-        require(poh.isRegistered(msg.sender)); // not failsafe - takes 3.5 days to switch address
+        if (!poh.isRegistered(msg.sender)) {
+            revert IdentityProofInvalid();
+        } // not failsafe - takes 3.5 days to switch address
 
         User storage user_ = users[_debateId][msg.sender];
 
