@@ -208,11 +208,11 @@ contract ArborVote is IArbitrable {
         Argument storage rootArgument_ = currentDebate_.arguments[0];
 
         // Create the root argument of the tree
+        rootArgument_.contentURI = _contentURI;
+
         rootArgument_.metadata.creator = msg.sender;
         rootArgument_.metadata.finalizationTime = uint32(block.timestamp);
-        rootArgument_.metadata.isSupporting = true;
         rootArgument_.metadata.state = State.Final;
-        rootArgument_.contentURI = _contentURI;
 
         // Store the phase related data
         PhaseData storage phaseData_ = phases[debateId];
@@ -362,11 +362,11 @@ contract ArborVote is IArbitrable {
         Argument storage movedArgument_ = debate_.arguments[_argumentId];
 
         // change old parent's argument state
-        uint16 oldParentArgumentId = movedArgument_.metadata.parenArgumentId;
+        uint16 oldParentArgumentId = movedArgument_.metadata.parentArgumentId;
         _updateParentAfterChildRemoval(_debateId, oldParentArgumentId);
 
         // change argument state
-        movedArgument_.metadata.parenArgumentId = _newParentArgumentId;
+        movedArgument_.metadata.parentArgumentId = _newParentArgumentId;
 
         // change new parent argument state
         debate_.arguments[_newParentArgumentId].metadata.untalliedChilds++;
@@ -404,7 +404,7 @@ contract ArborVote is IArbitrable {
         emit ArgumentUpdated({
             debateId: _debateId,
             argumentId: _argumentId,
-            parentArgumentId: alteredArgument_.metadata.parenArgumentId,
+            parentArgumentId: alteredArgument_.metadata.parentArgumentId,
             contentURI: _contentURI
         });
     }
@@ -656,7 +656,7 @@ contract ArborVote is IArbitrable {
 
         argument_.metadata.creator = msg.sender;
         argument_.metadata.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
-        argument_.metadata.parenArgumentId = _parentArgumentId;
+        argument_.metadata.parentArgumentId = _parentArgumentId;
         argument_.metadata.isSupporting = _isSupporting;
         argument_.metadata.state = State.Created;
 
@@ -748,7 +748,7 @@ contract ArborVote is IArbitrable {
 
         Debate storage debate_ = debates[_debateId];
         debate_.totalVotes += votes;
-        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parenArgumentId;
+        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parentArgumentId;
         debate_.arguments[parentArgumentId].metadata.childsVote += votes;
 
         Market storage market_ = debate_.arguments[_argumentId].market;
@@ -773,7 +773,7 @@ contract ArborVote is IArbitrable {
 
         Debate storage debate_ = debates[_debateId];
         debate_.totalVotes += votes;
-        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parenArgumentId;
+        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parentArgumentId;
         debate_.arguments[parentArgumentId].metadata.childsVote += votes;
 
         Market storage market_ = debate_.arguments[_argumentId].market;
@@ -816,7 +816,7 @@ contract ArborVote is IArbitrable {
     /// @param _argumentId The ID of the argument.
     function _tallyNode(uint256 _debateId, uint16 _argumentId) internal {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
-        uint16 parentArgumentId = argument_.metadata.parenArgumentId;
+        uint16 parentArgumentId = argument_.metadata.parentArgumentId;
         Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
 
         require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
@@ -825,7 +825,7 @@ contract ArborVote is IArbitrable {
         int64 ownImpact = _calculateImpact(_debateId, _argumentId);
 
         // Apply pre-factor $\sigma_j$
-        if (argument_.metadata.isSupporting) {
+        if (!argument_.metadata.isSupporting) {
             ownImpact = -ownImpact;
         }
 

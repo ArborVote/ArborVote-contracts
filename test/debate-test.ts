@@ -10,6 +10,7 @@ import {
   advanceTime,
   advanceTimeTo,
 } from './test-helpers';
+import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 
 enum Phase {
   Unitialized,
@@ -39,14 +40,15 @@ describe('ArborVote', function () {
   let mockProofOfHumanity: Contract;
   let mockERC20: Contract;
   let mockArbitrator: Contract;
-  let sender: string;
+  let signers: SignerWithAddress[];
   let debateId: number;
 
   const timeUnit: number = 1 * 60; // 1 minute
   const thesis = toBytes('We should do XYZ');
+  const rootArgumentId = 0;
 
   beforeEach(async function () {
-    sender = await (await ethers.getSigners())[0].getAddress();
+    signers = await ethers.getSigners();
 
     const UtilsLib = await ethers.getContractFactory('UtilsLib');
     utilsLib = await UtilsLib.deploy();
@@ -71,7 +73,7 @@ describe('ArborVote', function () {
     await arborVote.deployed();
 
     const MockERC20 = await ethers.getContractFactory('MockERC20');
-    mockERC20 = await MockERC20.deploy(1000, sender);
+    mockERC20 = await MockERC20.deploy(1000, signers[0].address);
     await mockERC20.deployed();
     await mockERC20.approve(arborVote.address, 1000);
   });
@@ -147,10 +149,37 @@ describe('ArborVote', function () {
       expect(phaseData.votingEndTime).to.eq(currentTime + 10 * timeUnit);
     });
 
-    it('creates a debate and allows to join', async function () {
-      debateId = await arborVote.callStatic.createDebate(thesis, timeUnit);
+    it('initializes the root argument', async function () {
+      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
       expect(debateId).to.equal(0);
 
+      const rootArgument = convertToStruct(
+        await arborVote.getArgument(debateId, rootArgumentId)
+      );
+      expect(rootArgument.contentURI).to.eq(thesis);
+
+      const market = convertToStruct(rootArgument.market);
+      expect(market.pro).to.eq(0);
+      expect(market.con).to.eq(0);
+      expect(market.const).to.eq(0);
+      expect(market.vote).to.eq(0);
+      expect(market.fees).to.eq(0);
+
+      const metadata = convertToStruct(rootArgument.metadata);
+
+      expect(metadata.creator).to.eq(signers[0].address);
+      expect(metadata.state).to.eq(State.Final);
+      expect(metadata.finalizationTime).to.eq(await getTime());
+
+      expect(metadata.isSupporting).to.eq(false);
+      expect(metadata.parentArgumentId).to.eq(0);
+      expect(metadata.childsVote).to.eq(0);
+
+      expect(await arborVote.getLeafArgumentIds(debateId)).to.be.empty;
+      expect(await arborVote.getDisputedArgumentIds(debateId)).to.be.empty;
+    });
+
+    it('creates a debate and allows to join', async function () {
       await arborVote.createDebate(thesis, timeUnit);
       await arborVote.join(debateId);
 

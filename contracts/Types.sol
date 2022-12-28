@@ -41,7 +41,7 @@ struct Metadata {
     address creator; // 160 bits = 20 bytes
     bool isSupporting; // 8 bits
     State state; // 8 bits
-    uint16 parenArgumentId;
+    uint16 parentArgumentId;
     uint16 untalliedChilds;
     uint32 finalizationTime;
     // 240 bits
