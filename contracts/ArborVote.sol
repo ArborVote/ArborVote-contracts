@@ -164,6 +164,31 @@ contract ArborVote is IArbitrable {
         poh = _poh;
     }
 
+    /// @notice Returns an argument from a debate.
+    /// @param _debateId The ID of the debate.
+    /// @param _argumentId The ID of the argument.
+    /// @return The argument queried.
+    function getArgument(
+        uint256 _debateId,
+        uint16 _argumentId
+    ) external view returns (Argument memory) {
+        return debates[_debateId].arguments[_argumentId];
+    }
+
+    /// @notice Returns the leaf argument IDs of a debate.
+    /// @param _debateId The ID of the debate.
+    /// @return The leaf argument IDs.
+    function getLeafArgumentIds(uint256 _debateId) external view returns (uint16[] memory) {
+        return debates[_debateId].leafArgumentIds;
+    }
+
+    /// @notice Returns the leaf argument IDs of a debate.
+    /// @param _debateId The ID of the debate.
+    /// @return The disputed argument IDs.
+    function getDisputedArgumentIds(uint256 _debateId) external view returns (uint16[] memory) {
+        return debates[_debateId].disputedArgumentIds;
+    }
+
     /// @notice Creates a new debate.
     /// @param _contentURI The URI pointing to the content of the debate thesis.
     /// @param _timeUnit The time unit of the debate determining the editing and voting times.
