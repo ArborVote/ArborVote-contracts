@@ -352,6 +352,21 @@ describe('ArborVote', function () {
         );
       });
 
+      it('reverts for initial approvals above 100%', async function () {
+        const initialApproval = 101;
+        await expect(
+          arborVote.addArgument(
+            debateId,
+            rootArgumentId,
+            proArgumentContent,
+            true,
+            initialApproval
+          )
+        ).to.be.revertedWith(
+          customError('InitialApprovalOutOfBounds', 100, initialApproval)
+        );
+      });
+
       it('initializes the argument market with an intial approval of 50%', async function () {
         const initialApproval = 50;
         await arborVote.addArgument(
@@ -390,6 +405,27 @@ describe('ArborVote', function () {
         expect(market.pro).to.eq(2);
         expect(market.con).to.eq(8);
         expect(market.const).to.eq(16);
+        expect(market.vote).to.eq(10);
+        expect(market.fees).to.eq(0);
+      });
+
+      it('initializes the argument market with an intial approval of 100%', async function () {
+        const initialApproval = 100;
+        await arborVote.addArgument(
+          debateId,
+          rootArgumentId,
+          proArgumentContent,
+          true,
+          initialApproval
+        );
+        const argumentId = 1;
+
+        const market = convertToStruct(
+          (await arborVote.getArgument(debateId, argumentId)).market
+        );
+        expect(market.pro).to.eq(0);
+        expect(market.con).to.eq(10);
+        expect(market.const).to.eq(0); // TODO
         expect(market.vote).to.eq(10);
         expect(market.fees).to.eq(0);
       });

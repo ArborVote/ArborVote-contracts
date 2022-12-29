@@ -30,10 +30,12 @@ struct Argument {
 struct Market {
     uint32 pro;
     uint32 con;
-    uint32 const;
+    uint32 const; // TODO remove
     uint32 vote;
     uint32 fees;
 } // 160 bits < 32 bytes
+
+// TODO unite with Metadata
 
 struct Metadata {
     address creator; // 160 bits = 20 bytes
