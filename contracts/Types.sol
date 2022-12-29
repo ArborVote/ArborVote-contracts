@@ -5,9 +5,7 @@ import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 
 library DebateLib {
     function incrementArgumentCounter(Debate storage _debate) internal {
-        unchecked {
-            _debate.argumentsCount += 1;
-        }
+        _debate.argumentsCount += 1;
     }
 
     function getArgumentsCount(Debate storage _debate) internal view returns (uint16) {

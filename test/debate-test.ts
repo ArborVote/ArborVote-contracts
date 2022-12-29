@@ -43,7 +43,9 @@ describe('ArborVote', function () {
   let debateId: number;
 
   const timeUnit: number = 1 * 60; // 1 minute
-  const thesis = toBytes('We should do XYZ');
+  const thesisContent = toBytes('We should do XYZ');
+  const proArgumentContent = toBytes('This is a good idea.');
+  const conArgumentContent = toBytes('This is a bad idea.');
   const rootArgumentId = 0;
 
   beforeEach(async function () {
@@ -87,7 +89,11 @@ describe('ArborVote', function () {
   describe('advancePhase', async function () {
     beforeEach(async function () {
       await arborVote.initialize(mockProofOfHumanity.address);
-      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      await arborVote.createDebate(thesisContent, timeUnit);
     });
 
     it('reverts for an uninitialized debate', async function () {
@@ -135,9 +141,27 @@ describe('ArborVote', function () {
       expect(phaseData.timeUnit).to.eq(0);
     });
 
+    it('increments the debate ID', async function () {
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      expect(debateId).to.eq(0);
+      await arborVote.createDebate(thesisContent, timeUnit);
+
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      expect(debateId).to.eq(1);
+    });
+
     it('initializes the phase data', async function () {
-      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
-      expect(debateId).to.equal(0);
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      await arborVote.createDebate(thesisContent, timeUnit);
 
       let currentTime = await getTime();
       let phaseData = convertToStruct(await arborVote.phases(debateId));
@@ -149,13 +173,16 @@ describe('ArborVote', function () {
     });
 
     it('initializes the root argument', async function () {
-      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
-      expect(debateId).to.equal(0);
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      await arborVote.createDebate(thesisContent, timeUnit);
 
       const rootArgument = convertToStruct(
         await arborVote.getArgument(debateId, rootArgumentId)
       );
-      expect(rootArgument.contentURI).to.eq(thesis);
+      expect(rootArgument.contentURI).to.eq(thesisContent);
 
       const market = convertToStruct(rootArgument.market);
       expect(market.pro).to.eq(0);
@@ -181,7 +208,11 @@ describe('ArborVote', function () {
   describe('join', async function () {
     beforeEach(async function () {
       await arborVote.initialize(mockProofOfHumanity.address);
-      debateId = (await arborVote.createDebate(thesis, timeUnit)).value;
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      await arborVote.createDebate(thesisContent, timeUnit);
     });
 
     it('joins a debate', async function () {
@@ -226,6 +257,142 @@ describe('ArborVote', function () {
       await expect(arborVote.join(debateId)).to.be.revertedWith(
         customError('IdentityProofInvalid')
       );
+    });
+  });
+
+  describe('addArgument', async function () {
+    beforeEach(async function () {
+      await arborVote.initialize(mockProofOfHumanity.address);
+      debateId = await arborVote.callStatic.createDebate(
+        thesisContent,
+        timeUnit
+      );
+      await arborVote.createDebate(thesisContent, timeUnit);
+      await arborVote.join(debateId);
+    });
+
+    it('increments the argument ID', async function () {
+      let argumentId = await arborVote.callStatic.addArgument(
+        debateId,
+        rootArgumentId,
+        proArgumentContent,
+        true,
+        50
+      );
+      await arborVote.addArgument(
+        debateId,
+        rootArgumentId,
+        proArgumentContent,
+        true,
+        50
+      );
+      expect(argumentId).to.equal(1);
+
+      argumentId = await arborVote.callStatic.addArgument(
+        debateId,
+        rootArgumentId,
+        proArgumentContent,
+        true,
+        50
+      );
+      expect(argumentId).to.equal(2);
+    });
+
+    it('adds a pro argument', async function () {
+      await arborVote.addArgument(
+        debateId,
+        rootArgumentId,
+        proArgumentContent,
+        true,
+        50
+      );
+      const proArgumentId = 1;
+      let currentTime = await getTime();
+
+      const proArgument = convertToStruct(
+        await arborVote.getArgument(debateId, proArgumentId)
+      );
+      expect(proArgument.contentURI).to.eq(proArgumentContent);
+
+      const market = convertToStruct(proArgument.market);
+      expect(market.pro).to.eq(5);
+      expect(market.con).to.eq(5);
+      expect(market.const).to.eq(25);
+      expect(market.vote).to.eq(10);
+      expect(market.fees).to.eq(0);
+
+      const metadata = convertToStruct(proArgument.metadata);
+      expect(metadata.creator).to.eq(signers[0].address);
+      expect(metadata.state).to.eq(State.Created);
+      expect(metadata.finalizationTime).to.eq(currentTime + timeUnit);
+
+      expect(metadata.isSupporting).to.eq(true);
+      expect(metadata.parentArgumentId).to.eq(0);
+      expect(metadata.childsVote).to.eq(0);
+
+      expect(await arborVote.getLeafArgumentIds(debateId)).to.be.deep.eq([
+        proArgumentId,
+      ]);
+      expect(await arborVote.getDisputedArgumentIds(debateId)).to.be.empty;
+    });
+
+    context('arguments with different intial approvals', async function () {
+      it('reverts for initial approvals below 50%', async function () {
+        const initialApproval = 49;
+        await expect(
+          arborVote.addArgument(
+            debateId,
+            rootArgumentId,
+            proArgumentContent,
+            true,
+            initialApproval
+          )
+        ).to.be.revertedWith(
+          customError('InitialApprovalOutOfBounds', 50, initialApproval)
+        );
+      });
+
+      it('initializes the argument market with an intial approval of 50%', async function () {
+        const initialApproval = 50;
+        await arborVote.addArgument(
+          debateId,
+          rootArgumentId,
+          proArgumentContent,
+          true,
+          initialApproval
+        );
+        const argumentId = 1;
+
+        const market = convertToStruct(
+          (await arborVote.getArgument(debateId, argumentId)).market
+        );
+        expect(market.pro).to.eq(5);
+        expect(market.con).to.eq(5);
+        expect(market.const).to.eq(25);
+        expect(market.vote).to.eq(10);
+        expect(market.fees).to.eq(0);
+      });
+
+      it('initializes the argument market with an intial approval of 80%', async function () {
+        const initialApproval = 80;
+        await arborVote.addArgument(
+          debateId,
+          rootArgumentId,
+          proArgumentContent,
+          true,
+          initialApproval
+        );
+        const argumentId = 1;
+
+        const market = convertToStruct(
+          (await arborVote.getArgument(debateId, argumentId)).market
+        );
+        expect(market.pro).to.eq(2);
+        expect(market.con).to.eq(8);
+        expect(market.const).to.eq(16);
+        expect(market.vote).to.eq(10);
+        expect(market.fees).to.eq(0);
+      });
     });
   });
 });

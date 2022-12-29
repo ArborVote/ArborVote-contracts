@@ -116,6 +116,12 @@ contract ArborVote is IArbitrable {
     /// @notice Thrown if the identity proof of an account is invalid.
     error IdentityProofInvalid();
 
+    /// @notice Thrown if initial approval value is out of bounds.
+    error InitialApprovalOutOfBounds(uint32 limit, uint32 actual);
+
+    /// @notice Thrown if the vote token balance is too low.
+    error InsufficientVoteTokens(uint32 required, uint32 actual);
+
     /// @notice A modifier to restrict functions to only be called if the debate is in a certain phase.
     /// @param _debateId The ID of the debate.
     /// @param _phase The phase of the debate required.
@@ -235,8 +241,8 @@ contract ArborVote is IArbitrable {
         debatesCounter.increment();
 
         // Create the root Argument
-        Debate storage currentDebate_ = debates[debateId];
-        Argument storage rootArgument_ = currentDebate_.arguments[0];
+        Debate storage newDebate_ = debates[debateId];
+        Argument storage rootArgument_ = newDebate_.arguments[0];
 
         // Create the root argument of the tree
         rootArgument_.contentURI = _contentURI;
@@ -253,7 +259,7 @@ contract ArborVote is IArbitrable {
         phaseData_.votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
 
         // increment counters
-        currentDebate_.incrementArgumentCounter();
+        newDebate_.incrementArgumentCounter();
 
         emit ArgumentUpdated({
             debateId: debateId,
@@ -343,8 +349,16 @@ contract ArborVote is IArbitrable {
     {
         User storage user_ = users[_debateId][msg.sender];
 
-        require(50 <= _initialApproval && _initialApproval <= 100);
-        require(user_.tokens >= DEBATE_DEPOSIT);
+        if (_initialApproval < 50) {
+            revert InitialApprovalOutOfBounds({limit: 50, actual: _initialApproval});
+        }
+        if (_initialApproval > 100) {
+            revert InitialApprovalOutOfBounds({limit: 100, actual: _initialApproval});
+        }
+
+        if (user_.tokens < DEBATE_DEPOSIT) {
+            revert InsufficientVoteTokens({required: DEBATE_DEPOSIT, actual: user_.tokens});
+        }
 
         // initialize market
         Debate storage debate_ = debates[_debateId];
@@ -548,7 +562,10 @@ contract ArborVote is IArbitrable {
     ) external onlyPhase(_debateId, Phase.Voting) {
         User storage user_ = users[_debateId][msg.sender];
 
-        require(user_.tokens >= _voteTokenAmount);
+        if (user_.tokens < _voteTokenAmount) {
+            revert InsufficientVoteTokens({required: _voteTokenAmount, actual: user_.tokens});
+        }
+
         user_.tokens -= _voteTokenAmount;
 
         InvestmentData memory data = calculateInvestment(_debateId, _argumentId, _voteTokenAmount);
