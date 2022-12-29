@@ -116,11 +116,24 @@ contract ArborVote is IArbitrable {
     /// @notice Thrown if the identity proof of an account is invalid.
     error IdentityProofInvalid();
 
+    /// @notice Thrown if the time is out of bounds.
+    /// @param limit The limit time as a unix timestamp.
+    /// @param actual The actual time as a unix timestamp.
+    error TimeOutOfBounds(uint32 limit, uint32 actual);
+
     /// @notice Thrown if initial approval value is out of bounds.
+    /// @param limit The limit initial approval value.
+    /// @param actual The actual initial approval value.
     error InitialApprovalOutOfBounds(uint32 limit, uint32 actual);
 
     /// @notice Thrown if the vote token balance is too low.
+    /// @param required The required vote tokens.
+    /// @param actual The actual vote token balance.
     error InsufficientVoteTokens(uint32 required, uint32 actual);
+
+    /// @notice Thrown if the childs of the argument are not tallied.
+    /// @param untalliedChilds The number of untallied childs.
+    error ChildsUntallied(uint16 untalliedChilds);
 
     /// @notice A modifier to restrict functions to only be called if the debate is in a certain phase.
     /// @param _debateId The ID of the debate.
@@ -323,7 +336,11 @@ contract ArborVote is IArbitrable {
     ) public onlyArgumentState(_debateId, _argumentId, State.Created) {
         Metadata storage metadata_ = debates[_debateId].arguments[_argumentId].metadata;
 
-        require(metadata_.finalizationTime <= uint32(block.timestamp)); // TODO emit error
+        uint32 currentTime = uint32(block.timestamp);
+
+        if (metadata_.finalizationTime > currentTime) {
+            revert TimeOutOfBounds({limit: currentTime, actual: metadata_.finalizationTime});
+        }
 
         metadata_.state = State.Final;
     }
@@ -442,7 +459,12 @@ contract ArborVote is IArbitrable {
     {
         uint32 newFinalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
 
-        require(newFinalizationTime <= phases[_debateId].editingEndTime);
+        if (newFinalizationTime > phases[_debateId].editingEndTime) {
+            revert TimeOutOfBounds({
+                limit: phases[_debateId].editingEndTime,
+                actual: newFinalizationTime
+            });
+        }
 
         Argument storage alteredArgument_ = debates[_debateId].arguments[_argumentId];
         alteredArgument_.metadata.finalizationTime = newFinalizationTime;
@@ -509,7 +531,7 @@ contract ArborVote is IArbitrable {
 
         // fetch ruling
         (address subject, uint256 ruling) = arbitrator.rule(disputeId);
-        require(subject == address(this));
+        require(subject == address(this)); // TODO
 
         Debate storage debate_ = debates[_debateId];
 
@@ -594,7 +616,10 @@ contract ArborVote is IArbitrable {
     ) external onlyPhase(_debateId, Phase.Voting) {
         User storage user_ = users[_debateId][msg.sender];
 
-        require(user_.tokens >= _voteTokenAmount);
+        if (user_.tokens < _voteTokenAmount) {
+            revert InsufficientVoteTokens({required: _voteTokenAmount, actual: user_.tokens});
+        }
+
         user_.tokens -= _voteTokenAmount;
 
         InvestmentData memory data = calculateInvestment(_debateId, _argumentId, _voteTokenAmount);
@@ -615,7 +640,7 @@ contract ArborVote is IArbitrable {
     /// @notice Tallies the argument tree of a debate.
     /// @param _debateId The ID of the debate.
     function tallyTree(uint256 _debateId) external onlyPhase(_debateId, Phase.Finished) {
-        require(debates[_debateId].disputedArgumentIds.length == 0); // TODO: because things are finished, we can assume this is zero
+        require(debates[_debateId].disputedArgumentIds.length == 0); // TODO: Remove. Because arguments are guaranteed to be finalized, we can assume this is zero
 
         uint16[] memory leafArgumentIds = debates[_debateId].leafArgumentIds;
 
@@ -720,7 +745,9 @@ contract ArborVote is IArbitrable {
         Debate storage debate_ = debates[_debateId];
         Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
 
-        require(parentArgument_.metadata.state == State.Final);
+        if (parentArgument_.metadata.state != State.Final) {
+            revert StateInvalid({expected: State.Final, actual: parentArgument_.metadata.state});
+        }
 
         parentArgument_.metadata.untalliedChilds--;
 
@@ -869,7 +896,9 @@ contract ArborVote is IArbitrable {
         uint16 parentArgumentId = argument_.metadata.parentArgumentId;
         Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
 
-        require(argument_.metadata.untalliedChilds == 0); // All childs must be tallied first
+        if (argument_.metadata.untalliedChilds > 0) {
+            revert ChildsUntallied({untalliedChilds: argument_.metadata.untalliedChilds});
+        }
 
         // Calculate own impact $r_j$
         int64 ownImpact = _calculateImpact(_debateId, _argumentId);
