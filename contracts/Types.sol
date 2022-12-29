@@ -22,22 +22,8 @@ struct Debate {
 }
 
 struct Argument {
-    Metadata metadata;
-    bytes32 contentURI;
-    Market market;
-} // 1024 bits = 4x 32 bytes
-
-struct Market {
-    uint32 pro;
-    uint32 con;
-    uint32 const; // TODO remove
-    uint32 vote;
-    uint32 fees;
-} // 160 bits < 32 bytes
-
-// TODO unite with Metadata
-
-struct Metadata {
+    bytes32 contentURI; // 256 bits
+    // - SLOT 1 END -
     address creator; // 160 bits = 20 bytes
     bool isSupporting; // 8 bits
     State state; // 8 bits
@@ -45,11 +31,16 @@ struct Metadata {
     uint16 untalliedChilds;
     uint32 finalizationTime;
     // 240 bits
-    // - SLOT 1 END -
+    // - SLOT 2 END -
+    uint32 pro;
+    uint32 con;
+    uint32 const; // TODO remove
+    uint32 vote;
+    uint32 fees;
     uint32 childsVote;
     int64 childsImpact;
-    // 128 bits
-} // 368 bits < 2x 32 bytes
+    // - SLOT 3 END -
+}
 
 enum State {
     Unitialized,

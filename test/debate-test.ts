@@ -184,21 +184,19 @@ describe('ArborVote', function () {
       );
       expect(rootArgument.contentURI).to.eq(thesisContent);
 
-      const market = convertToStruct(rootArgument.market);
-      expect(market.pro).to.eq(0);
-      expect(market.con).to.eq(0);
-      expect(market.const).to.eq(0);
-      expect(market.vote).to.eq(0);
-      expect(market.fees).to.eq(0);
+      expect(rootArgument.pro).to.eq(0);
+      expect(rootArgument.con).to.eq(0);
+      expect(rootArgument.const).to.eq(0);
+      expect(rootArgument.vote).to.eq(0);
+      expect(rootArgument.fees).to.eq(0);
 
-      const metadata = convertToStruct(rootArgument.metadata);
-      expect(metadata.creator).to.eq(signers[0].address);
-      expect(metadata.state).to.eq(State.Final);
-      expect(metadata.finalizationTime).to.eq(await getTime());
+      expect(rootArgument.creator).to.eq(signers[0].address);
+      expect(rootArgument.state).to.eq(State.Final);
+      expect(rootArgument.finalizationTime).to.eq(await getTime());
 
-      expect(metadata.isSupporting).to.eq(false);
-      expect(metadata.parentArgumentId).to.eq(0);
-      expect(metadata.childsVote).to.eq(0);
+      expect(rootArgument.isSupporting).to.eq(false);
+      expect(rootArgument.parentArgumentId).to.eq(0);
+      expect(rootArgument.childsVote).to.eq(0);
 
       expect(await arborVote.getLeafArgumentIds(debateId)).to.be.empty;
       expect(await arborVote.getDisputedArgumentIds(debateId)).to.be.empty;
@@ -314,24 +312,58 @@ describe('ArborVote', function () {
       );
       expect(proArgument.contentURI).to.eq(proArgumentContent);
 
-      const market = convertToStruct(proArgument.market);
-      expect(market.pro).to.eq(5);
-      expect(market.con).to.eq(5);
-      expect(market.const).to.eq(25);
-      expect(market.vote).to.eq(10);
-      expect(market.fees).to.eq(0);
+      expect(proArgument.pro).to.eq(5);
+      expect(proArgument.con).to.eq(5);
+      expect(proArgument.const).to.eq(25);
+      expect(proArgument.vote).to.eq(10);
+      expect(proArgument.fees).to.eq(0);
 
-      const metadata = convertToStruct(proArgument.metadata);
-      expect(metadata.creator).to.eq(signers[0].address);
-      expect(metadata.state).to.eq(State.Created);
-      expect(metadata.finalizationTime).to.eq(currentTime + timeUnit);
+      expect(proArgument.creator).to.eq(signers[0].address);
+      expect(proArgument.state).to.eq(State.Created);
+      expect(proArgument.finalizationTime).to.eq(currentTime + timeUnit);
 
-      expect(metadata.isSupporting).to.eq(true);
-      expect(metadata.parentArgumentId).to.eq(0);
-      expect(metadata.childsVote).to.eq(0);
+      expect(proArgument.isSupporting).to.eq(true);
+      expect(proArgument.parentArgumentId).to.eq(0);
+      expect(proArgument.childsVote).to.eq(0);
 
       expect(await arborVote.getLeafArgumentIds(debateId)).to.be.deep.eq([
         proArgumentId,
+      ]);
+      expect(await arborVote.getDisputedArgumentIds(debateId)).to.be.empty;
+    });
+
+    it('adds a con argument', async function () {
+      await arborVote.addArgument(
+        debateId,
+        rootArgumentId,
+        proArgumentContent,
+        false,
+        50
+      );
+      const conArgumentId = 1;
+      let currentTime = await getTime();
+
+      const conArgument = convertToStruct(
+        await arborVote.getArgument(debateId, conArgumentId)
+      );
+      expect(conArgument.contentURI).to.eq(proArgumentContent);
+
+      expect(conArgument.pro).to.eq(5);
+      expect(conArgument.con).to.eq(5);
+      expect(conArgument.const).to.eq(25);
+      expect(conArgument.vote).to.eq(10);
+      expect(conArgument.fees).to.eq(0);
+
+      expect(conArgument.creator).to.eq(signers[0].address);
+      expect(conArgument.state).to.eq(State.Created);
+      expect(conArgument.finalizationTime).to.eq(currentTime + timeUnit);
+
+      expect(conArgument.isSupporting).to.eq(false);
+      expect(conArgument.parentArgumentId).to.eq(0);
+      expect(conArgument.childsVote).to.eq(0);
+
+      expect(await arborVote.getLeafArgumentIds(debateId)).to.be.deep.eq([
+        conArgumentId,
       ]);
       expect(await arborVote.getDisputedArgumentIds(debateId)).to.be.empty;
     });
@@ -367,7 +399,7 @@ describe('ArborVote', function () {
         );
       });
 
-      it('initializes the argument market with an intial approval of 50%', async function () {
+      it('initializes the argument argument with an intial approval of 50%', async function () {
         const initialApproval = 50;
         await arborVote.addArgument(
           debateId,
@@ -378,17 +410,17 @@ describe('ArborVote', function () {
         );
         const argumentId = 1;
 
-        const market = convertToStruct(
-          (await arborVote.getArgument(debateId, argumentId)).market
+        const argument = convertToStruct(
+          await arborVote.getArgument(debateId, argumentId)
         );
-        expect(market.pro).to.eq(5);
-        expect(market.con).to.eq(5);
-        expect(market.const).to.eq(25);
-        expect(market.vote).to.eq(10);
-        expect(market.fees).to.eq(0);
+        expect(argument.pro).to.eq(5);
+        expect(argument.con).to.eq(5);
+        expect(argument.const).to.eq(25);
+        expect(argument.vote).to.eq(10);
+        expect(argument.fees).to.eq(0);
       });
 
-      it('initializes the argument market with an intial approval of 80%', async function () {
+      it('initializes the argument argument with an intial approval of 80%', async function () {
         const initialApproval = 80;
         await arborVote.addArgument(
           debateId,
@@ -399,17 +431,17 @@ describe('ArborVote', function () {
         );
         const argumentId = 1;
 
-        const market = convertToStruct(
-          (await arborVote.getArgument(debateId, argumentId)).market
+        const argument = convertToStruct(
+          await arborVote.getArgument(debateId, argumentId)
         );
-        expect(market.pro).to.eq(2);
-        expect(market.con).to.eq(8);
-        expect(market.const).to.eq(16);
-        expect(market.vote).to.eq(10);
-        expect(market.fees).to.eq(0);
+        expect(argument.pro).to.eq(2);
+        expect(argument.con).to.eq(8);
+        expect(argument.const).to.eq(16);
+        expect(argument.vote).to.eq(10);
+        expect(argument.fees).to.eq(0);
       });
 
-      it('initializes the argument market with an intial approval of 100%', async function () {
+      it('initializes the argument argument with an intial approval of 100%', async function () {
         const initialApproval = 100;
         await arborVote.addArgument(
           debateId,
@@ -420,14 +452,14 @@ describe('ArborVote', function () {
         );
         const argumentId = 1;
 
-        const market = convertToStruct(
-          (await arborVote.getArgument(debateId, argumentId)).market
+        const argument = convertToStruct(
+          await arborVote.getArgument(debateId, argumentId)
         );
-        expect(market.pro).to.eq(0);
-        expect(market.con).to.eq(10);
-        expect(market.const).to.eq(0); // TODO
-        expect(market.vote).to.eq(10);
-        expect(market.fees).to.eq(0);
+        expect(argument.pro).to.eq(0);
+        expect(argument.con).to.eq(10);
+        expect(argument.const).to.eq(0); // TODO
+        expect(argument.vote).to.eq(10);
+        expect(argument.fees).to.eq(0);
       });
     });
   });

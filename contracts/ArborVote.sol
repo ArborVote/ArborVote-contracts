@@ -260,9 +260,9 @@ contract ArborVote is IArbitrable {
         // Create the root argument of the tree
         rootArgument_.contentURI = _contentURI;
 
-        rootArgument_.metadata.creator = msg.sender;
-        rootArgument_.metadata.finalizationTime = uint32(block.timestamp);
-        rootArgument_.metadata.state = State.Final;
+        rootArgument_.creator = msg.sender;
+        rootArgument_.finalizationTime = uint32(block.timestamp);
+        rootArgument_.state = State.Final;
 
         // Store the phase related data
         PhaseData storage phaseData_ = phases[debateId];
@@ -324,7 +324,7 @@ contract ArborVote is IArbitrable {
         if (phases[_debateId].currentPhase != Phase.Finished)
             revert PhaseInvalid({expected: Phase.Finished, actual: phases[_debateId].currentPhase});
 
-        approved = debates[_debateId].arguments[0].metadata.childsImpact > 0;
+        approved = debates[_debateId].arguments[0].childsImpact > 0;
     }
 
     /// @notice Finalizes an argument of a debate.
@@ -334,15 +334,15 @@ contract ArborVote is IArbitrable {
         uint256 _debateId,
         uint16 _argumentId
     ) public onlyArgumentState(_debateId, _argumentId, State.Created) {
-        Metadata storage metadata_ = debates[_debateId].arguments[_argumentId].metadata;
+        Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
         uint32 currentTime = uint32(block.timestamp);
 
-        if (metadata_.finalizationTime > currentTime) {
-            revert TimeOutOfBounds({limit: currentTime, actual: metadata_.finalizationTime});
+        if (argument_.finalizationTime > currentTime) {
+            revert TimeOutOfBounds({limit: currentTime, actual: argument_.finalizationTime});
         }
 
-        metadata_.state = State.Final;
+        argument_.state = State.Final;
     }
 
     /// @notice Adds an argument below a parent argument with a certain initial approval.
@@ -392,7 +392,7 @@ contract ArborVote is IArbitrable {
         );
 
         // Update parent
-        debate_.arguments[_parentArgumentId].metadata.untalliedChilds++;
+        debate_.arguments[_parentArgumentId].untalliedChilds++;
 
         // Update the debate's leaf arguments if this is not the root argument
         if (_parentArgumentId != 0) {
@@ -426,14 +426,14 @@ contract ArborVote is IArbitrable {
         Argument storage movedArgument_ = debate_.arguments[_argumentId];
 
         // change old parent's argument state
-        uint16 oldParentArgumentId = movedArgument_.metadata.parentArgumentId;
+        uint16 oldParentArgumentId = movedArgument_.parentArgumentId;
         _updateParentAfterChildRemoval(_debateId, oldParentArgumentId);
 
         // change argument state
-        movedArgument_.metadata.parentArgumentId = _newParentArgumentId;
+        movedArgument_.parentArgumentId = _newParentArgumentId;
 
         // change new parent argument state
-        debate_.arguments[_newParentArgumentId].metadata.untalliedChilds++;
+        debate_.arguments[_newParentArgumentId].untalliedChilds++;
 
         emit ArgumentUpdated({
             debateId: _debateId,
@@ -467,13 +467,13 @@ contract ArborVote is IArbitrable {
         }
 
         Argument storage alteredArgument_ = debates[_debateId].arguments[_argumentId];
-        alteredArgument_.metadata.finalizationTime = newFinalizationTime;
+        alteredArgument_.finalizationTime = newFinalizationTime;
         alteredArgument_.contentURI = _contentURI;
 
         emit ArgumentUpdated({
             debateId: _debateId,
             argumentId: _argumentId,
-            parentArgumentId: alteredArgument_.metadata.parentArgumentId,
+            parentArgumentId: alteredArgument_.parentArgumentId,
             contentURI: _contentURI
         });
     }
@@ -537,9 +537,9 @@ contract ArborVote is IArbitrable {
 
         debate_.disputedArgumentIds.removeById(_argumentId);
         if (ruling == 0) {
-            debate_.arguments[_argumentId].metadata.state = State.Final;
+            debate_.arguments[_argumentId].state = State.Final;
         } else {
-            debate_.arguments[_argumentId].metadata.state = State.Invalid;
+            debate_.arguments[_argumentId].state = State.Invalid;
         }
 
         emit Ruled({arbitrator: arbitrator, disputeId: disputeId, ruling: ruling});
@@ -562,8 +562,8 @@ contract ArborVote is IArbitrable {
 
         investmentData.fee = _voteTokenAmount.multipyByFraction(FEE_PERCENTAGE, 100);
         (uint32 proMint, uint32 conMint) = (_voteTokenAmount - investmentData.fee).split(
-            argument_.market.pro,
-            argument_.market.con
+            argument_.pro,
+            argument_.con
         );
 
         investmentData.proMint = proMint;
@@ -664,7 +664,7 @@ contract ArborVote is IArbitrable {
     /// @param _debateId The ID of the debate.
     /// @param _argumentId The ID of the argument.
     function _onlyCreator(uint256 _debateId, uint16 _argumentId) internal view {
-        address creator = debates[_debateId].arguments[_argumentId].metadata.creator;
+        address creator = debates[_debateId].arguments[_argumentId].creator;
         if (msg.sender != creator) {
             revert AddressInvalid({expected: creator, actual: msg.sender});
         }
@@ -675,7 +675,7 @@ contract ArborVote is IArbitrable {
     /// @param _argumentId The ID of the argument.
     /// @param _state The state of the argument required.
     function _onlyArgumentState(uint256 _debateId, uint16 _argumentId, State _state) internal view {
-        State state = debates[_debateId].arguments[_argumentId].metadata.state;
+        State state = debates[_debateId].arguments[_argumentId].state;
         if (state != _state) {
             revert StateInvalid({expected: _state, actual: state});
         }
@@ -722,18 +722,18 @@ contract ArborVote is IArbitrable {
         Argument storage argument_ = debate_.arguments[newArgumentId];
 
         // Create a child node and add it to the mapping
-        (argument_.market.pro, argument_.market.con) = DEBATE_DEPOSIT.split(
+        (argument_.pro, argument_.con) = DEBATE_DEPOSIT.split(
             100 - _initialApproval,
             _initialApproval
         );
-        argument_.market.const = argument_.market.pro * argument_.market.con;
-        argument_.market.vote = DEBATE_DEPOSIT;
+        argument_.const = argument_.pro * argument_.con;
+        argument_.vote = DEBATE_DEPOSIT;
 
-        argument_.metadata.creator = msg.sender;
-        argument_.metadata.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
-        argument_.metadata.parentArgumentId = _parentArgumentId;
-        argument_.metadata.isSupporting = _isSupporting;
-        argument_.metadata.state = State.Created;
+        argument_.creator = msg.sender;
+        argument_.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
+        argument_.parentArgumentId = _parentArgumentId;
+        argument_.isSupporting = _isSupporting;
+        argument_.state = State.Created;
 
         argument_.contentURI = _contentURI;
     }
@@ -745,14 +745,14 @@ contract ArborVote is IArbitrable {
         Debate storage debate_ = debates[_debateId];
         Argument storage parentArgument_ = debate_.arguments[_parentArgumentId];
 
-        if (parentArgument_.metadata.state != State.Final) {
-            revert StateInvalid({expected: State.Final, actual: parentArgument_.metadata.state});
+        if (parentArgument_.state != State.Final) {
+            revert StateInvalid({expected: State.Final, actual: parentArgument_.state});
         }
 
-        parentArgument_.metadata.untalliedChilds--;
+        parentArgument_.untalliedChilds--;
 
         // Eventually, the parent argument becomes a leaf after the removal
-        if (parentArgument_.metadata.untalliedChilds == 0) {
+        if (parentArgument_.untalliedChilds == 0) {
             // append
             debate_.leafArgumentIds.push(_parentArgumentId);
         }
@@ -806,7 +806,7 @@ contract ArborVote is IArbitrable {
     function _addDispute(uint256 _debateId, uint16 _argumentId, uint256 _disputeId) internal {
         Debate storage debate_ = debates[_debateId];
 
-        debate_.arguments[_argumentId].metadata.state = State.Disputed;
+        debate_.arguments[_argumentId].state = State.Disputed;
         debate_.disputedArgumentIds.push(_argumentId);
 
         disputes[_debateId][_argumentId] = _disputeId;
@@ -824,16 +824,15 @@ contract ArborVote is IArbitrable {
         uint32 votes = _investment.voteTokensInvested - _investment.fee;
 
         Debate storage debate_ = debates[_debateId];
+        Argument storage argument_ = debate_.arguments[_argumentId];
+
         debate_.totalVotes += votes;
-        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parentArgumentId;
-        debate_.arguments[parentArgumentId].metadata.childsVote += votes;
+        debate_.arguments[argument_.parentArgumentId].childsVote += votes;
 
-        Market storage market_ = debate_.arguments[_argumentId].market;
-
-        market_.vote += votes;
-        market_.fees += _investment.fee;
-        market_.con += _investment.conMint;
-        market_.pro -= _investment.proSwap;
+        argument_.vote += votes;
+        argument_.fees += _investment.fee;
+        argument_.pro -= _investment.proSwap;
+        argument_.con += _investment.conMint;
     }
 
     /// @notice Internal function to execute an investment to obtain cont tokens on the argument's market in a debate.
@@ -846,19 +845,17 @@ contract ArborVote is IArbitrable {
         InvestmentData memory _investment
     ) internal {
         uint32 votes = _investment.voteTokensInvested - _investment.fee;
-        debates[_debateId].totalVotes += votes;
 
         Debate storage debate_ = debates[_debateId];
+        Argument storage argument_ = debate_.arguments[_argumentId];
+
         debate_.totalVotes += votes;
-        uint16 parentArgumentId = debate_.arguments[_argumentId].metadata.parentArgumentId;
-        debate_.arguments[parentArgumentId].metadata.childsVote += votes;
+        debate_.arguments[argument_.parentArgumentId].childsVote += votes;
 
-        Market storage market_ = debate_.arguments[_argumentId].market;
-
-        market_.vote += votes;
-        market_.fees += _investment.fee;
-        market_.pro += _investment.proMint;
-        market_.con -= _investment.conSwap;
+        argument_.vote += votes;
+        argument_.fees += _investment.fee;
+        argument_.pro += _investment.proMint;
+        argument_.con -= _investment.conSwap;
     }
 
     /// @notice Internal function to calculate the amount of pro tokens obtained from swapping the minted con tokens.
@@ -893,24 +890,24 @@ contract ArborVote is IArbitrable {
     /// @param _argumentId The ID of the argument.
     function _tallyNode(uint256 _debateId, uint16 _argumentId) internal {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
-        uint16 parentArgumentId = argument_.metadata.parentArgumentId;
+        uint16 parentArgumentId = argument_.parentArgumentId;
         Argument storage parentArgument_ = debates[_debateId].arguments[parentArgumentId];
 
-        if (argument_.metadata.untalliedChilds > 0) {
-            revert ChildsUntallied({untalliedChilds: argument_.metadata.untalliedChilds});
+        if (argument_.untalliedChilds > 0) {
+            revert ChildsUntallied({untalliedChilds: argument_.untalliedChilds});
         }
 
         // Calculate own impact $r_j$
         int64 ownImpact = _calculateImpact(_debateId, _argumentId);
 
         // Apply pre-factor $\sigma_j$
-        if (!argument_.metadata.isSupporting) {
+        if (!argument_.isSupporting) {
             ownImpact = -ownImpact;
         }
 
         // Apply weight $w_j$
-        uint32 ownVotes = argument_.market.vote;
-        uint32 ownAndSibilingVotes = parentArgument_.metadata.childsVote; // This works, because the parent contains the votes of all children (the siblings).
+        uint32 ownVotes = argument_.vote;
+        uint32 ownAndSibilingVotes = parentArgument_.childsVote; // This works, because the parent contains the votes of all children (the siblings).
 
         ownImpact = ownImpact.multipyByFraction(
             int64(uint64(ownVotes)),
@@ -918,11 +915,11 @@ contract ArborVote is IArbitrable {
         );
 
         // Update the parent argument impact
-        parentArgument_.metadata.childsImpact += ownImpact;
-        parentArgument_.metadata.untalliedChilds--;
+        parentArgument_.childsImpact += ownImpact;
+        parentArgument_.untalliedChilds--;
 
         // if all childs of the parent are tallied, tally parent
-        if (parentArgument_.metadata.untalliedChilds == 0) {
+        if (parentArgument_.untalliedChilds == 0) {
             _tallyNode(_debateId, parentArgumentId);
         }
 
@@ -943,14 +940,14 @@ contract ArborVote is IArbitrable {
     ) internal view returns (int64 impact) {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
-        uint32 pro = argument_.market.pro;
-        uint32 con = argument_.market.con;
+        uint32 pro = argument_.pro;
+        uint32 con = argument_.con;
 
         // calculate own impact
         impact = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
 
         impact =
             impact.multipyByFraction(MIX_MAX - MIX_VAL, MIX_MAX) +
-            (argument_.metadata.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
+            (argument_.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
     }
 }
