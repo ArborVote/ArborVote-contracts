@@ -396,7 +396,7 @@ contract ArborVote is IArbitrable {
 
         // Update the debate's leaf arguments if this is not the root argument
         if (_parentArgumentId != 0) {
-            debate_.leafArgumentIds.removeById(_parentArgumentId);
+            debate_.leafArgumentIds.removeByValue(_parentArgumentId);
         }
         debate_.leafArgumentIds.push(newArgumentId);
 
@@ -535,7 +535,7 @@ contract ArborVote is IArbitrable {
 
         Debate storage debate_ = debates[_debateId];
 
-        debate_.disputedArgumentIds.removeById(_argumentId);
+        debate_.disputedArgumentIds.removeByValue(_argumentId);
         if (ruling == 0) {
             debate_.arguments[_argumentId].state = State.Final;
         } else {
