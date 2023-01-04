@@ -3,6 +3,10 @@ pragma solidity ^0.8.0;
 
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 
+/**
+ * Debate Related
+ */
+
 library DebateLib {
     function incrementArgumentCounter(Debate storage _debate) internal {
         _debate.argumentsCount += 1;
@@ -19,6 +23,18 @@ struct Debate {
     uint16 argumentsCount; // ┘ + 16 bits = 48 bits
     uint16[] leafArgumentIds;
     uint16[] disputedArgumentIds;
+}
+
+/**
+ * Argument Related
+ */
+
+enum State {
+    Unitialized,
+    Created,
+    Final,
+    Disputed,
+    Invalid
 }
 
 struct Argument {
@@ -38,14 +54,6 @@ struct Argument {
     int64 childsImpact; //      ┘ + 64 bits = 256 bits
 } // 2 slots
 
-enum State {
-    Unitialized,
-    Created,
-    Final,
-    Disputed,
-    Invalid
-}
-
 struct InvestmentData {
     uint32 voteTokensInvested; // ┐   32 bits
     uint32 proMint; //            | + 32 bits
@@ -55,11 +63,9 @@ struct InvestmentData {
     uint32 conSwap; //            ┘ + 32 bits = 192 bits
 } // 1 slot
 
-struct User {
-    Role role; //     ┐    8 bits
-    uint32 tokens; // ┘ + 32 bits = 40 bits
-    mapping(uint16 => Shares) shares;
-} // 2 slots
+/**
+ * User Related
+ */
 
 enum Role {
     Unassigned,
@@ -67,17 +73,20 @@ enum Role {
     Juror
 }
 
+struct User {
+    Role role; //     ┐    8 bits
+    uint32 tokens; // ┘ + 32 bits = 40 bits
+    mapping(uint16 => Shares) shares;
+} // 2 slots
+
 struct Shares {
     uint32 pro; // ┐   32 bits
     uint32 con; // ┘ + 32 bits = 64 bits
 } // 1 slot
 
-struct PhaseData {
-    Phase currentPhase; //    ┐    8 bits
-    uint64 editingEndTime; // | + 64 bits
-    uint64 votingEndTime; //  | + 64 bits
-    uint64 timeUnit; //       ┘ + 64 bits = 194 bits
-} // 1 slot
+/**
+ * Time Related
+ */
 
 enum Phase {
     Unitialized,
@@ -85,3 +94,10 @@ enum Phase {
     Voting,
     Finished
 }
+
+struct PhaseData {
+    Phase currentPhase; //    ┐    8 bits
+    uint64 editingEndTime; // | + 64 bits
+    uint64 votingEndTime; //  | + 64 bits
+    uint64 timeUnit; //       ┘ + 64 bits = 194 bits
+} // 1 slot
