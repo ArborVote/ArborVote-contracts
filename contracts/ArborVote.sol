@@ -121,7 +121,7 @@ contract ArborVote is IArbitrable {
     /// @notice Thrown if the time is out of bounds.
     /// @param limit The limit time as a unix timestamp.
     /// @param actual The actual time as a unix timestamp.
-    error TimeOutOfBounds(uint32 limit, uint32 actual);
+    error TimeOutOfBounds(uint64 limit, uint64 actual);
 
     /// @notice Thrown if initial approval value is out of bounds.
     /// @param limit The limit initial approval value.
@@ -246,7 +246,7 @@ contract ArborVote is IArbitrable {
     /// @param _timeUnit The time unit of the debate determining the editing and voting times.
     function createDebate(
         bytes32 _contentURI,
-        uint32 _timeUnit
+        uint64 _timeUnit
     )
         external
         onlyArgumentState(debatesCounter.current(), 0, State.Unitialized)
@@ -263,15 +263,15 @@ contract ArborVote is IArbitrable {
         rootArgument_.contentURI = _contentURI;
 
         rootArgument_.creator = msg.sender;
-        rootArgument_.finalizationTime = block.timestamp.toUint32();
+        rootArgument_.finalizationTime = block.timestamp.toUint64();
         rootArgument_.state = State.Final;
 
         // Store the phase related data
         PhaseData storage phaseData_ = phases[debateId];
         phaseData_.currentPhase = Phase.Editing;
         phaseData_.timeUnit = _timeUnit;
-        phaseData_.editingEndTime = block.timestamp.toUint32() + 7 * _timeUnit;
-        phaseData_.votingEndTime = block.timestamp.toUint32() + 10 * _timeUnit;
+        phaseData_.editingEndTime = block.timestamp.toUint64() + 7 * _timeUnit;
+        phaseData_.votingEndTime = block.timestamp.toUint64() + 10 * _timeUnit;
 
         // increment counters
         newDebate_.incrementArgumentCounter();
@@ -293,7 +293,7 @@ contract ArborVote is IArbitrable {
             revert DebateUninitialized({debateId: _debateId});
         }
 
-        uint32 currentTime = block.timestamp.toUint32();
+        uint64 currentTime = block.timestamp.toUint64();
 
         if (currentTime > phaseData_.votingEndTime && phaseData_.currentPhase != Phase.Finished) {
             phaseData_.currentPhase = Phase.Finished;
@@ -338,7 +338,7 @@ contract ArborVote is IArbitrable {
     ) public onlyArgumentState(_debateId, _argumentId, State.Created) {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
-        uint32 currentTime = block.timestamp.toUint32();
+        uint64 currentTime = block.timestamp.toUint64();
 
         if (argument_.finalizationTime > currentTime) {
             revert TimeOutOfBounds({limit: currentTime, actual: argument_.finalizationTime});
@@ -459,7 +459,7 @@ contract ArborVote is IArbitrable {
         onlyCreator(_debateId, _argumentId)
         onlyArgumentState(_debateId, _argumentId, State.Created)
     {
-        uint32 newFinalizationTime = block.timestamp.toUint32() + phases[_debateId].timeUnit;
+        uint64 newFinalizationTime = block.timestamp.toUint64() + phases[_debateId].timeUnit;
 
         if (newFinalizationTime > phases[_debateId].editingEndTime) {
             revert TimeOutOfBounds({
@@ -732,7 +732,7 @@ contract ArborVote is IArbitrable {
         argument_.vote = DEBATE_DEPOSIT;
 
         argument_.creator = msg.sender;
-        argument_.finalizationTime = block.timestamp.toUint32() + phases[_debateId].timeUnit;
+        argument_.finalizationTime = block.timestamp.toUint64() + phases[_debateId].timeUnit;
         argument_.parentArgumentId = _parentArgumentId;
         argument_.isSupporting = _isSupporting;
         argument_.state = State.Created;

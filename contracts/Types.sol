@@ -28,7 +28,7 @@ struct Argument {
     State state; //             | +  8 bits
     uint16 parentArgumentId; // | + 16 bits
     uint16 untalliedChilds; //  | + 16 bits
-    uint32 finalizationTime; // ┘ + 32 bits = 240 bits
+    uint64 finalizationTime; // ┘ + 64 bits = 256 bits
     uint32 pro; //              ┐   32 bits
     uint32 con; //              | + 32 bits
     uint32 const; //            | + 32 bits // TODO remove
@@ -53,13 +53,13 @@ struct InvestmentData {
     uint32 fee; //                | + 32 bits
     uint32 proSwap; //            | + 32 bits
     uint32 conSwap; //            ┘ + 32 bits = 192 bits
-} // 1 slots
+} // 1 slot
 
 struct User {
     Role role; //     ┐    8 bits
     uint32 tokens; // ┘ + 32 bits = 40 bits
     mapping(uint16 => Shares) shares;
-}
+} // 2 slots
 
 enum Role {
     Unassigned,
@@ -68,16 +68,16 @@ enum Role {
 }
 
 struct Shares {
-    uint32 pro;
-    uint32 con;
-} // 64 bits
+    uint32 pro; // ┐   32 bits
+    uint32 con; // ┘ + 32 bits = 64 bits
+} // 1 slot
 
 struct PhaseData {
-    Phase currentPhase;
-    uint32 editingEndTime;
-    uint32 votingEndTime;
-    uint32 timeUnit;
-} // 104 bits
+    Phase currentPhase; //    ┐    8 bits
+    uint64 editingEndTime; // | + 64 bits
+    uint64 votingEndTime; //  | + 64 bits
+    uint64 timeUnit; //       ┘ + 64 bits = 194 bits
+} // 1 slot
 
 enum Phase {
     Unitialized,
