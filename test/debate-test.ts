@@ -2,13 +2,7 @@ import {ethers} from 'hardhat';
 import {Contract} from 'ethers';
 import {expect} from 'chai';
 
-import {
-  customError,
-  toBytes,
-  convertToStruct,
-  getTime,
-  advanceTimeTo,
-} from './test-helpers';
+import {toBytes, convertToStruct, getTime, advanceTimeTo} from './test-helpers';
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 
 enum Phase {
@@ -102,11 +96,9 @@ describe('ArborVote', function () {
         (await arborVote.phases(uninitializedDebateId)).currentPhase
       ).to.eq(Phase.Unitialized);
 
-      await expect(
-        arborVote.advancePhase(uninitializedDebateId)
-      ).to.be.revertedWith(
-        customError('DebateUninitialized', uninitializedDebateId)
-      );
+      await expect(arborVote.advancePhase(uninitializedDebateId))
+        .to.be.revertedWithCustomError(arborVote, 'DebateUninitialized')
+        .withArgs(uninitializedDebateId);
     });
 
     it('advances the phases after the time has passed', async function () {
@@ -252,9 +244,9 @@ describe('ArborVote', function () {
     it('reverts if the user has no valid identity proof', async function () {
       await mockProofOfHumanity.deny(signers[0].address);
 
-      await expect(arborVote.join(debateId)).to.be.revertedWith(
-        customError('IdentityProofInvalid')
-      );
+      await expect(arborVote.join(debateId))
+        .to.be.revertedWithCustomError(arborVote, 'IdentityProofInvalid')
+        .withArgs();
     });
   });
 
@@ -379,9 +371,12 @@ describe('ArborVote', function () {
             true,
             initialApproval
           )
-        ).to.be.revertedWith(
-          customError('InitialApprovalOutOfBounds', 50, initialApproval)
-        );
+        )
+          .to.be.revertedWithCustomError(
+            arborVote,
+            'InitialApprovalOutOfBounds'
+          )
+          .withArgs(50, initialApproval);
       });
 
       it('reverts for initial approvals above 100%', async function () {
@@ -394,9 +389,12 @@ describe('ArborVote', function () {
             true,
             initialApproval
           )
-        ).to.be.revertedWith(
-          customError('InitialApprovalOutOfBounds', 100, initialApproval)
-        );
+        )
+          .to.be.revertedWithCustomError(
+            arborVote,
+            'InitialApprovalOutOfBounds'
+          )
+          .withArgs(100, initialApproval);
       });
 
       it('initializes the argument argument with an intial approval of 50%', async function () {
