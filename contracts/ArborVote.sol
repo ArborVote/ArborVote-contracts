@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./interfaces/IArbitrator.sol";
@@ -16,6 +17,7 @@ contract ArborVote is IArbitrable {
     using UtilsLib for uint64;
     using UtilsLib for int64;
     using SafeERC20 for ERC20;
+    using SafeCast for uint256;
     using Counters for Counters.Counter;
     using DebateLib for Debate;
 
@@ -261,15 +263,15 @@ contract ArborVote is IArbitrable {
         rootArgument_.contentURI = _contentURI;
 
         rootArgument_.creator = msg.sender;
-        rootArgument_.finalizationTime = uint32(block.timestamp);
+        rootArgument_.finalizationTime = block.timestamp.toUint32();
         rootArgument_.state = State.Final;
 
         // Store the phase related data
         PhaseData storage phaseData_ = phases[debateId];
         phaseData_.currentPhase = Phase.Editing;
         phaseData_.timeUnit = _timeUnit;
-        phaseData_.editingEndTime = uint32(block.timestamp + 7 * _timeUnit);
-        phaseData_.votingEndTime = uint32(block.timestamp + 10 * _timeUnit);
+        phaseData_.editingEndTime = block.timestamp.toUint32() + 7 * _timeUnit;
+        phaseData_.votingEndTime = block.timestamp.toUint32() + 10 * _timeUnit;
 
         // increment counters
         newDebate_.incrementArgumentCounter();
@@ -291,7 +293,7 @@ contract ArborVote is IArbitrable {
             revert DebateUninitialized({debateId: _debateId});
         }
 
-        uint32 currentTime = uint32(block.timestamp);
+        uint32 currentTime = block.timestamp.toUint32();
 
         if (currentTime > phaseData_.votingEndTime && phaseData_.currentPhase != Phase.Finished) {
             phaseData_.currentPhase = Phase.Finished;
@@ -336,7 +338,7 @@ contract ArborVote is IArbitrable {
     ) public onlyArgumentState(_debateId, _argumentId, State.Created) {
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
-        uint32 currentTime = uint32(block.timestamp);
+        uint32 currentTime = block.timestamp.toUint32();
 
         if (argument_.finalizationTime > currentTime) {
             revert TimeOutOfBounds({limit: currentTime, actual: argument_.finalizationTime});
@@ -457,7 +459,7 @@ contract ArborVote is IArbitrable {
         onlyCreator(_debateId, _argumentId)
         onlyArgumentState(_debateId, _argumentId, State.Created)
     {
-        uint32 newFinalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
+        uint32 newFinalizationTime = block.timestamp.toUint32() + phases[_debateId].timeUnit;
 
         if (newFinalizationTime > phases[_debateId].editingEndTime) {
             revert TimeOutOfBounds({
@@ -730,7 +732,7 @@ contract ArborVote is IArbitrable {
         argument_.vote = DEBATE_DEPOSIT;
 
         argument_.creator = msg.sender;
-        argument_.finalizationTime = uint32(block.timestamp) + phases[_debateId].timeUnit;
+        argument_.finalizationTime = block.timestamp.toUint32() + phases[_debateId].timeUnit;
         argument_.parentArgumentId = _parentArgumentId;
         argument_.isSupporting = _isSupporting;
         argument_.state = State.Created;
