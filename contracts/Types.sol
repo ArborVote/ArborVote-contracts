@@ -15,32 +15,28 @@ library DebateLib {
 
 struct Debate {
     mapping(uint16 => Argument) arguments;
-    uint32 totalVotes;
-    uint16 argumentsCount;
+    uint32 totalVotes; //     ┐   32 bits
+    uint16 argumentsCount; // ┘ + 16 bits = 48 bits
     uint16[] leafArgumentIds;
     uint16[] disputedArgumentIds;
 }
 
 struct Argument {
-    bytes32 contentURI; // 256 bits
-    // - SLOT 1 END -
-    address creator; // 160 bits = 20 bytes
-    bool isSupporting; // 8 bits
-    State state; // 8 bits
-    uint16 parentArgumentId;
-    uint16 untalliedChilds;
-    uint32 finalizationTime;
-    // 240 bits
-    // - SLOT 2 END -
-    uint32 pro;
-    uint32 con;
-    uint32 const; // TODO remove
-    uint32 vote;
-    uint32 fees;
-    uint32 childsVote;
-    int64 childsImpact;
-    // - SLOT 3 END -
-}
+    bytes32 contentURI;
+    address creator; //         ┐  160 bits
+    bool isSupporting; //       | +  8 bits
+    State state; //             | +  8 bits
+    uint16 parentArgumentId; // | + 16 bits
+    uint16 untalliedChilds; //  | + 16 bits
+    uint32 finalizationTime; // ┘ + 32 bits = 240 bits
+    uint32 pro; //              ┐   32 bits
+    uint32 con; //              | + 32 bits
+    uint32 const; //            | + 32 bits // TODO remove
+    uint32 vote; //             | + 32 bit
+    uint32 fees; //             | + 32 bit
+    uint32 childsVote; //       | + 32 bit
+    int64 childsImpact; //      ┘ + 64 bits = 256 bits
+} // 2 slots
 
 enum State {
     Unitialized,
@@ -51,19 +47,19 @@ enum State {
 }
 
 struct InvestmentData {
-    uint32 voteTokensInvested;
-    uint32 proMint;
-    uint32 conMint;
-    uint32 fee;
-    uint32 proSwap;
-    uint32 conSwap;
-} // 192 bits
+    uint32 voteTokensInvested; // ┐   32 bits
+    uint32 proMint; //            | + 32 bits
+    uint32 conMint; //            | + 32 bits
+    uint32 fee; //                | + 32 bits
+    uint32 proSwap; //            | + 32 bits
+    uint32 conSwap; //            ┘ + 32 bits = 192 bits
+} // 1 slots
 
 struct User {
-    Role role;
-    uint32 tokens;
+    Role role; //     ┐    8 bits
+    uint32 tokens; // ┘ + 32 bits = 40 bits
     mapping(uint16 => Shares) shares;
-} // 296 bits
+}
 
 enum Role {
     Unassigned,
