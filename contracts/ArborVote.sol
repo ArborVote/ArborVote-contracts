@@ -141,7 +141,7 @@ contract ArborVote is IArbitrable {
     /// @param _debateId The ID of the debate.
     /// @param _phase The phase of the debate required.
     modifier onlyPhase(uint256 _debateId, Phase _phase) {
-        _onlyPhase(_debateId, _phase);
+        _onlyPhase({_debateId: _debateId, _phase: _phase});
         _;
     }
 
@@ -149,7 +149,7 @@ contract ArborVote is IArbitrable {
     /// @param _debateId The ID of the debate.
     /// @param _phase The phase of the debate excluded.
     modifier excludePhase(uint256 _debateId, Phase _phase) {
-        _excludePhase(_debateId, _phase);
+        _excludePhase({_debateId: _debateId, _phase: _phase});
         _;
     }
 
@@ -162,7 +162,7 @@ contract ArborVote is IArbitrable {
         uint16 _argumentId,
         State _state
     ) {
-        _onlyArgumentState(_debateId, _argumentId, _state);
+        _onlyArgumentState({_debateId: _debateId, _argumentId: _argumentId, _state: _state});
         _;
     }
 
@@ -170,7 +170,7 @@ contract ArborVote is IArbitrable {
     /// @param _debateId The ID of the debate.
     /// @param _argumentId The ID of the argument.
     modifier onlyCreator(uint256 _debateId, uint16 _argumentId) {
-        _onlyCreator(_debateId, _argumentId);
+        _onlyCreator({_debateId: _debateId, _argumentId: _argumentId});
         _;
     }
 
@@ -178,7 +178,7 @@ contract ArborVote is IArbitrable {
     /// @param _debateId The ID of the debate.
     /// @param _role The role required.
     modifier onlyRole(uint256 _debateId, Role _role) {
-        _onlyRole(_debateId, _role);
+        _onlyRole({_debateId: _debateId, _role: _role});
         _;
     }
 
@@ -385,20 +385,20 @@ contract ArborVote is IArbitrable {
         user_.tokens -= DEBATE_DEPOSIT;
 
         // Create new argument
-        newArgumentId = _createArgument(
-            _debateId,
-            _parentArgumentId,
-            _contentURI,
-            _isSupporting,
-            _initialApproval
-        );
+        newArgumentId = _createArgument({
+            _debateId: _debateId,
+            _parentArgumentId: _parentArgumentId,
+            _contentURI: _contentURI,
+            _isSupporting: _isSupporting,
+            _initialApproval: _initialApproval
+        });
 
         // Update parent
         debate_.arguments[_parentArgumentId].untalliedChilds++;
 
         // Update the debate's leaf arguments if this is not the root argument
         if (_parentArgumentId != 0) {
-            debate_.leafArgumentIds.removeByValue(_parentArgumentId);
+            debate_.leafArgumentIds.removeByValue({value: _parentArgumentId});
         }
         debate_.leafArgumentIds.push(newArgumentId);
 
@@ -429,7 +429,10 @@ contract ArborVote is IArbitrable {
 
         // change old parent's argument state
         uint16 oldParentArgumentId = movedArgument_.parentArgumentId;
-        _updateParentAfterChildRemoval(_debateId, oldParentArgumentId);
+        _updateParentAfterChildRemoval({
+            _debateId: _debateId,
+            _parentArgumentId: oldParentArgumentId
+        });
 
         // change argument state
         movedArgument_.parentArgumentId = _newParentArgumentId;
@@ -496,7 +499,7 @@ contract ArborVote is IArbitrable {
         returns (uint256 disputeId)
     {
         // create dispute
-        disputeId = _createDispute(_debateId, _argumentId);
+        disputeId = _createDispute({_debateId: _debateId, _argumentId: _argumentId});
 
         // submit evidence
         _submitEvidence(
@@ -508,7 +511,7 @@ contract ArborVote is IArbitrable {
         );
 
         // state changes
-        _addDispute(_debateId, _argumentId, disputeId);
+        _addDispute({_debateId: _debateId, _argumentId: _argumentId, _disputeId: disputeId});
 
         emit DisputeRaised({
             debateId: _debateId,
@@ -537,7 +540,7 @@ contract ArborVote is IArbitrable {
 
         Debate storage debate_ = debates[_debateId];
 
-        debate_.disputedArgumentIds.removeByValue(_argumentId);
+        debate_.disputedArgumentIds.removeByValue({value: _argumentId});
         if (ruling == 0) {
             debate_.arguments[_argumentId].state = State.Final;
         } else {
@@ -562,7 +565,7 @@ contract ArborVote is IArbitrable {
 
         Argument storage argument_ = debates[_debateId].arguments[_argumentId];
 
-        investmentData.fee = _voteTokenAmount.multipyByFraction(FEE_PERCENTAGE, 100);
+        investmentData.fee = _voteTokenAmount.multipyByFraction({a: FEE_PERCENTAGE, b: 100});
         (uint32 proMint, uint32 conMint) = (_voteTokenAmount - investmentData.fee).split(
             argument_.pro,
             argument_.con
@@ -571,8 +574,8 @@ contract ArborVote is IArbitrable {
         investmentData.proMint = proMint;
         investmentData.conMint = conMint;
 
-        investmentData.proSwap = _calculateProSwap(proMint, conMint);
-        investmentData.conSwap = _calculateConSwap(proMint, conMint);
+        investmentData.proSwap = _calculateProSwap({_proMint: proMint, _conMint: conMint});
+        investmentData.conSwap = _calculateConSwap({_proMint: proMint, _conMint: conMint});
     }
 
     /// @notice Invests an amount of vote tokens into pro shares.
@@ -592,10 +595,14 @@ contract ArborVote is IArbitrable {
 
         user_.tokens -= _voteTokenAmount;
 
-        InvestmentData memory data = calculateInvestment(_debateId, _argumentId, _voteTokenAmount);
+        InvestmentData memory data = calculateInvestment({
+            _debateId: _debateId,
+            _argumentId: _argumentId,
+            _voteTokenAmount: _voteTokenAmount
+        });
         data.conSwap = 0;
 
-        _executeProInvestment(_debateId, _argumentId, data);
+        _executeProInvestment({_debateId: _debateId, _argumentId: _argumentId, _investment: data});
 
         user_.shares[_argumentId].pro += _voteTokenAmount;
 
@@ -624,10 +631,14 @@ contract ArborVote is IArbitrable {
 
         user_.tokens -= _voteTokenAmount;
 
-        InvestmentData memory data = calculateInvestment(_debateId, _argumentId, _voteTokenAmount);
+        InvestmentData memory data = calculateInvestment({
+            _debateId: _debateId,
+            _argumentId: _argumentId,
+            _voteTokenAmount: _voteTokenAmount
+        });
         data.proSwap = 0;
 
-        _executeConInvestment(_debateId, _argumentId, data);
+        _executeConInvestment({_debateId: _debateId, _argumentId: _argumentId, _investment: data});
 
         user_.shares[_argumentId].con += _voteTokenAmount;
 
@@ -900,7 +911,7 @@ contract ArborVote is IArbitrable {
         }
 
         // Calculate own impact $r_j$
-        int64 ownImpact = _calculateImpact(_debateId, _argumentId);
+        int64 ownImpact = _calculateImpact({_debateId: _debateId, _argumentId: _argumentId});
 
         // Apply pre-factor $\sigma_j$
         if (!argument_.isSupporting) {
@@ -911,10 +922,10 @@ contract ArborVote is IArbitrable {
         uint32 ownVotes = argument_.vote;
         uint32 ownAndSibilingVotes = parentArgument_.childsVote; // This works, because the parent contains the votes of all children (the siblings).
 
-        ownImpact = ownImpact.multipyByFraction(
-            int64(uint64(ownVotes)),
-            int64(uint64(ownAndSibilingVotes))
-        );
+        ownImpact = ownImpact.multipyByFraction({
+            a: int64(uint64(ownVotes)),
+            b: int64(uint64(ownAndSibilingVotes))
+        });
 
         // Update the parent argument impact
         parentArgument_.childsImpact += ownImpact;
@@ -922,7 +933,7 @@ contract ArborVote is IArbitrable {
 
         // if all childs of the parent are tallied, tally parent
         if (parentArgument_.untalliedChilds == 0) {
-            _tallyNode(_debateId, parentArgumentId);
+            _tallyNode({_debateId: _debateId, _argumentId: parentArgumentId});
         }
 
         emit ArgumentImpactCalculated({
@@ -946,10 +957,10 @@ contract ArborVote is IArbitrable {
         uint32 con = argument_.con;
 
         // calculate own impact
-        impact = int64(uint64(type(uint32).max.multipyByFraction(pro, pro + con)));
+        impact = int64(uint64(type(uint32).max.multipyByFraction({a: pro, b: pro + con})));
 
         impact =
-            impact.multipyByFraction(MIX_MAX - MIX_VAL, MIX_MAX) +
-            (argument_.childsImpact).multipyByFraction(MIX_VAL, MIX_MAX);
+            impact.multipyByFraction({a: MIX_MAX - MIX_VAL, b: MIX_MAX}) +
+            (argument_.childsImpact).multipyByFraction({a: MIX_VAL, b: MIX_MAX});
     }
 }
